@@ -30,11 +30,3 @@ class Level(models.Model):
 
     def __str__(self):
         return self.text
-
-# "Level" as Top Level
-## Section as Sub Level
-###### Add Characters into sections in the order of the stories' flow (one character can have multiple texts he works through during a section entry and one character can appear multiple times during a section with different text configurations) ######
-###### Add Text Elements into Characters in the order of the stories' flow (one character can have multiple texts with multiple choices for the player) ######
-# export as one file -> start with levels array, export as multiple -> one level per file
-## export as JSON or XML
-## save characters speaking into section but save sequences of multiple characters speaking right after each other in special section called "dialogue"

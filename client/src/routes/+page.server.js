@@ -1,3 +1,21 @@
+import { PUBLIC_API } from "$env/static/public";
+
+export const load = async (event) => {
+    const response = await fetch(PUBLIC_API + "/");
+
+    if (response.ok) {
+        const data = await response.json();
+
+        return {
+            characters: data.characters,
+            levels: data.levels,
+            sections: data.sections
+        }
+    }
+
+    return {}
+}
+
 export const actions = {
     addSection: async (event) => {
         const data = await event.request.formData();
