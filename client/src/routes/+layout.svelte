@@ -12,8 +12,8 @@
 		<div class="flex-grow">
 			<div class="flex flex-col justify-between">
 				<div class="flex items-center justify-center gap-5">
-					<a href="/" class="text-2xl font-bold">Home</a>
-					<a href="/" class="text-2xl font-bold">Auth</a>
+					<a href="/" class="text-2xl font-bold">Write</a>
+					<a href="/auth" class="text-2xl font-bold">Auth</a>
 				</div>
 				
 				{@render children()}

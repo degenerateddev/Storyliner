@@ -1,24 +1,19 @@
 from rest_framework import serializers
-from .models import TextElement, Section, Level, Character
+from .models import Character, Dialogue
 
-class TextElementSerializer(serializers.ModelSerializer):
+class DialogueSerializer(serializers.ModelSerializer):
+    json = serializers.SerializerMethodField()
+    
     class Meta:
-        model = TextElement
-        fields = '__all__'
-
-class SectionSerializer(serializers.ModelSerializer):
-    texts = TextElementSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Section
-        fields = '__all__'
-
-class LevelSerializer(serializers.ModelSerializer):
-    sections = SectionSerializer(many=True, read_only=True)
-
-    class Meta:
-        model = Level
-        fields = '__all__'
+        model = Dialogue
+        fields = ("id", "json",)
+    
+    def get_json(self, obj):
+        if obj.json:
+            with obj.json.open('r') as file:
+                return file.read()
+            
+        return None
 
 class CharacterSerializer(serializers.ModelSerializer):
     class Meta:

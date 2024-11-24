@@ -8,8 +8,7 @@ export const load = async (event) => {
 
         return {
             characters: data.characters,
-            levels: data.levels,
-            sections: data.sections
+            json: data.json
         }
     }
 
@@ -17,40 +16,60 @@ export const load = async (event) => {
 }
 
 export const actions = {
-    addSection: async (event) => {
-        const data = await event.request.formData();
-        const levelId = data.get('levelId');
-        const sectionName = data.get('sectionName');
-
-    },
-    removeSection: async (event) => {
-        const data = await event.request.formData();
-        const levelId = data.get('levelId');
-        const sectionId = data.get('sectionId');
-
-    },
-
-    addLevel: async (event) => {
-        const data = await event.request.formData();
-        const levelName = data.get('levelName');
-
-    },
-    removeLevel: async (event) => {
-        const data = await event.request.formData();
-        const levelId = data.get('levelId');
-
-    },
-
     addCharacter: async (event) => {
         const data = await event.request.formData();
-        const characterName = data.get('characterName');
-        const characterImage = data.get('characterImage');
+        const token = event.cookies.get("access");
 
+        const response = await fetch(PUBLIC_API + "/character", {
+            method: 'POST',
+            body: data,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            }
+        });
     },
-    addCharacterToSection: async (event) => {
+    editCharacter: async (event) => {
         const data = await event.request.formData();
         const characterId = data.get('characterId');
-        const sectionId = data.get('sectionId');
+        const token = event.cookies.get("access");
+
+        const response = await fetch(PUBLIC_API + "/character/" + characterId, {
+            method: 'PUT',
+            body: data,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            }
+        });
+    },
+    deleteCharacter: async (event) => {
+        const data = await event.request.formData();
+        const characterId = data.get('characterId');
+        const token = event.cookies.get("access");
+
+        const response = await fetch(PUBLIC_API + "/character/" + characterId, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            }
+        });
+    },
+
+    addDialogueData: async (event) => {
+        const data = await event.request.formData();
+        const json = data.get('json');
+        const token = event.cookies.get("access");
+
+        const response = await fetch(PUBLIC_API + "/dialogue", {
+            method: 'POST',
+            body: json,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            }
+        });
 
     }
 }
