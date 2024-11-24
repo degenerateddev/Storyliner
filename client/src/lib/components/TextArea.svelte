@@ -6,5 +6,5 @@
     {#if label}
         <label class="block text-sm font-medium text-gray-700">{label}</label>
     {/if}
-    <textarea class="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+    <textarea class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
 </div>

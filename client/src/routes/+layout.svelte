@@ -4,16 +4,12 @@
 </script>
 
 <main>
-	<div class="flex">
-		<div class="flex flex-col">
-			<a href="/" class="text-2xl font-bold">New</a>
-		</div>
-
+	<div class="flex p-5">
 		<div class="flex-grow">
 			<div class="flex flex-col justify-between">
-				<div class="flex items-center justify-center gap-5">
-					<a href="/" class="text-2xl font-bold">Write</a>
-					<a href="/auth" class="text-2xl font-bold">Auth</a>
+				<div class="flex items-center justify-end gap-5">
+					<a href="/" class="text-5xl font-light hover:font-normal">Write</a>
+					<a href="/auth" class="text-5xl font-light hover:font-normal">Auth</a>
 				</div>
 				
 				{@render children()}

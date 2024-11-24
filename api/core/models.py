@@ -11,7 +11,7 @@ class Character(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     avatar = models.ImageField(upload_to='avatars/')
-    data = models.JSONField()
+    meta = models.JSONField()
 
     def __str__(self):
         return self.name
