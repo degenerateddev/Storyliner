@@ -1,90 +1,87 @@
 {
-    "level_1": {
-        "name": "First Level",
-        "description": "Short level description",
-        "sections": [
-            {
-                "section_1": {
-                    "name": "First Section",
-                    "description": "Short section description",
-                    "texts": {
-                        "dialogue": [
-                            {
-                                "d_1": {
-                                    "meta": {
-                                        "custom_key": "Custom data"
-                                    },
-                                    "steps": [
-                                        {
-                                            "s_1": {
-                                                "character": "characterId",
-                                                "text": "Short dialogue opening line"
-                                            }
-                                        },
-                                        {
-                                            "s_2": {
-                                                "character": "characterId",
-                                                "text": "Short dialogue opening line"
-                                            }
-                                        },
-                                        ...
-                                    ]
-                                }
-                            },
-                            {
-                                "d_2": {
-                                    ...
-                                }
-                            },
-                            ...
-                        ],
-                        "talking": [
-                            {
-                                "t_1": {
-                                    "steps": [
-                                        {
-                                            "s_1": {
-                                                "character": "characterId",
-                                                "text": "Short talking opening line"
-                                            }
-                                        },
-                                        {
-                                            "s_2": {
-                                                "character": "characterId",
-                                                "text": "Short talking line"
-                                            }
-                                        },
-                                        ...
-                                    ]
-                                }
-                            },
-                            {
-                                "t_2": {
-                                    ...
-                                }
-                            },
-                            ...
-                        ],
-                        "jabbering": [
-                            {
-                                "j_1": {
-                                    "character": "characterId",
-                                    "text": "Short jabber"
-                                }
-                            },
-                            ...
-                        ]
+    "levels": [
+        {
+            "level_1": {
+                "name": "First Level",
+                "description": "Short level description",
+                "sections": [
+                    {
+                        "section_1": {
+                            "name": "First Section",
+                            "description": "Short section description",
+                            "texts": {
+                                "dialogues": [
+                                    {
+                                        "d_1": {
+                                            "meta": {
+                                                "custom_key": "Custom data"
+                                            },
+                                            "steps": [
+                                                {
+                                                    "s_1": {
+                                                        "character": "characterId",
+                                                        "text": "Short dialogue opening line"
+                                                    }
+                                                },
+                                                {
+                                                    "s_2": {
+                                                        "character": "characterId",
+                                                        "text": "Short dialogue opening line"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ],
+                                "talking": [
+                                    {
+                                        "t_1": {
+                                            "steps": [
+                                                {
+                                                    "s_1": {
+                                                        "character": "characterId",
+                                                        "text": "Short talking opening line"
+                                                    }
+                                                },
+                                                {
+                                                    "s_2": {
+                                                        "character": "characterId",
+                                                        "text": "Short talking line"
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    }
+                                ],
+                                "jabbering": [
+                                    {
+                                        "j_1": {
+                                            "character": "characterId",
+                                            "text": "Short jabber"
+                                        }
+                                    }
+                                ]
+                            }
+                        }
                     }
-                }
-            },
-            {
-                "section_2": {
-                    ...
-                }
+                ]
             }
-        ]
-    },
-    "level_2": {
-        ...
-    }
+        },
+        {
+            "level_2": {
+                "name": "Second Level",
+                "description": "Another level description",
+                "sections": []
+            }
+        }
+    ],
+    "characters": [
+        {
+            "characterId": {
+                "name": "Character Name",
+                "description": "Short character description",
+                "avatar": "path/to/image"
+            }
+        }
+    ]
 }
