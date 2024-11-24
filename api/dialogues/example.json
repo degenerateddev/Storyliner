@@ -2,11 +2,13 @@
     "levels": [
         {
             "level_1": {
+                "id": "1",
                 "name": "First Level",
                 "description": "Short level description",
                 "sections": [
                     {
                         "section_1": {
+                            "id": "1",
                             "name": "First Section",
                             "description": "Short section description",
                             "texts": {
@@ -69,18 +71,10 @@
         },
         {
             "level_2": {
+                "id": "2",
                 "name": "Second Level",
                 "description": "Another level description",
                 "sections": []
-            }
-        }
-    ],
-    "characters": [
-        {
-            "characterId": {
-                "name": "Character Name",
-                "description": "Short character description",
-                "avatar": "path/to/image"
             }
         }
     ]

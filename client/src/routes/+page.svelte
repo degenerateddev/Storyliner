@@ -1,52 +1,49 @@
 <script>
     import { enhance } from "$app/forms";
-	import Add from "$lib/components/Add.svelte";
-	import Modal from "$lib/components/Modal.svelte";
-	import { onMount } from "svelte";
+    import Add from "$lib/components/Add.svelte";
+    import Modal from "$lib/components/Modal.svelte";
+    import { onMount } from "svelte";
 
     export let data;
-    var json = data.json || {};
-    var characters = json.characters || [];
+    var json = data.json || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem("json"))) || {};
+    var characters = json.characters || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem("characters"))) || [];
     var levels = json.levels || [];
-    var sections = levels.forEach(level => {
-        return level.sections;
-    }) || [];
-    var dialogues = sections.forEach(section => {
-        return section.texts.dialogues;
-    }) || [];
-    var talkings = sections.forEach(section => {
-        return section.texts.talking;
-    }) || [];
-    var jabberings = sections.forEach(section => {
-        return section.texts.jabbering;
-    }) || [];
+    var sections = levels.flatMap(level => level.sections) || [];
+    var dialogues = sections.flatMap(section => section.texts.dialogues) || [];
+    var talkings = sections.flatMap(section => section.texts.talking) || [];
+    var jabberings = sections.flatMap(section => section.texts.jabbering) || [];
 
     var showCharacterModal = false;
     var showDialogueModal = false;
     var newCharacter = { name: '', avatar: '', meta: '' };
     var newDialogue = { steps: [], meta: '' }
 
-    var hoveringOverArea = null;
+    var currentLevel = 0;
+    var currentSection = 0;
+    var currentEdit = "dialogues"; // dialogues, talking, jabbering
+
+    var hoveringOverArea = false;
+    var texts = [];
 
     onMount(() => {
         if (json) {
-            
-
             buildNodes();
         }
     })
 
     function buildNodes() {
-        
+        // Implement node building logic here
     }
 
-    function addDialogue(base) {
+    function addText(base) {
         if (newDialogue.steps) {
-            base["dialogue"].push({ ...newDialogue });
+            base[currentEdit].push({ ...newDialogue });
             base = base;
 
             showDialogueModal = false;
             newDialogue = { steps: [], meta: '' };
+
+            saveJSON("json", json);
         }
     }
 
@@ -57,6 +54,8 @@
 
             showCharacterModal = false;
             newCharacter = { name: '', avatar: '', meta: '' };
+
+            saveJSON("characters", characters);
         }
     }
 
@@ -70,6 +69,9 @@
             levels = levels;
 
             json.levels = levels;
+            json = json;
+
+            saveJSON("json", json);
         }
     }
 
@@ -81,24 +83,56 @@
 
             sections.push({ name, description, texts: [] });
             sections = sections;
+            console.log(sections);
 
-            json.sections = sections;
+            json.levels[currentLevel]["sections"] = sections;
+            levels = json.levels;
+            json = json;
+
+            saveJSON("json", json);
         }
     }
 
-    function exportJson() {
-        const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+    function exportJson(entry) {
+        const data = localStorage.getItem(entry);
+        const blob = new Blob([JSON.stringify(data, null, 4)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'data.json';
+        a.download = entry + '.json';
         a.click();
         URL.revokeObjectURL(url);
-    } 
+    }
+
+    function saveJSON(key, data) {
+        localStorage.setItem(key, JSON.stringify(data));
+    }
+
+    function changeLevel(level) {
+        currentLevel = level;
+    }
+
+    function changeSection(section) {
+        currentSection = section;
+    }
+
+    function handleDragStart(event, character) {
+        event.dataTransfer.setData("character", JSON.stringify(character));
+    }
+
+    function handleDrop(event) {
+        event.preventDefault();
+        const character = JSON.parse(event.dataTransfer.getData("character"));
+        texts.push({ character, text: '' });
+    }
+
+    function handleDragOver(event) {
+        event.preventDefault();
+    }
 </script>
 
 <main>
-    <button on:click={exportJson} class="fixed bottom-5 right-10 rounded-xl p-4 border-white border backdrop-blur-sm bg-white/30 hover:bg-white/10">
+    <button on:click={() => exportJson("json")} class="fixed bottom-5 right-10 rounded-xl p-4 border-white border backdrop-blur-sm bg-white/30 hover:bg-white/10">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-white size-12 rotate-180">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
         </svg>
@@ -112,42 +146,72 @@
 
                 {#each characters as character}
                     <div class="flex items-end justify-center">
-                        <div class="bg-white font-semibold font-mono rounded-md p-3 cursor-pointer">{character.name}</div>
+                        <div 
+                            class="bg-white font-semibold font-mono rounded-md p-3 cursor-pointer"
+                            draggable="true"
+                            on:dragstart={(event) => handleDragStart(event, character)}
+                        >
+                            {character.name}
+                        </div>
                     </div>
                 {/each}
+
+                <button on:click={() => exportJson("characters")} class="mt-auto rounded-xl w-fit mx-auto p-4 m-5 border-white border backdrop-blur-sm bg-white/30 hover:bg-white/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-white size-12 rotate-180">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                </button>
             </div>
         </div>
 
         <div class="flex flex-col flex-grow">
-            <h2 class="text-2xl font-semibold">Levels</h2>
+            <h2 class="text-2xl font-semibold">Levels (currently selected: {currentLevel})</h2>
             <div class="flex gap-5 justify-start bg-teal-400 h-[10vh] rounded-md">
                 <Add event={() => addLevel()} />
 
                 {#each levels as level}
-                    <button class="flex items-center justify-center rounded-xl p-4 border-white border w-fit m-5 backdrop-blur-sm bg-white/10 hover:bg-white/30">
-                        <span>{level.name}</span>
+                    <button 
+                        on:click={() => changeLevel(level.id)}
+                        class="flex items-center justify-center rounded-xl p-4 border-white border w-fit m-5 backdrop-blur-sm bg-white/10 hover:bg-white/30">
+                        <div class="bg-white font-semibold font-mono rounded-md p-3 cursor-pointer">{level.name}</div>
                     </button>
                 {/each}
             </div>
 
-            <h2 class="text-2xl font-semibold">Sections</h2>
-            <div class="flex gap-5 justify-start bg-red-400 h-[10vh] rounded-md">
-                <Add event={() => addSection()} />
+            {#if levels.length > 0}
+                <h2 class="text-2xl font-semibold">Sections</h2>
+                <div class="flex gap-5 justify-start bg-red-400 h-[10vh] rounded-md">
+                    <Add event={() => addSection()} />
 
-                {#each sections as section}
-                    <button class="flex items-center justify-center rounded-xl p-4 border-white border w-fit m-5 backdrop-blur-sm bg-white/10 hover:bg-white/30">
-                        <span>{section.id}</span>
-                    </button>
-                {/each}
-            </div>
-
-            {#if json.levels}
-                <h2 class="text-2xl font-semibold">Editor</h2>
-                <div class="bg-stone-800 text-white w-full h-full rounded-md" on:dragenter={() => hoveringOverArea = true} on:dragleave={() => hoveringOverArea = false} on:drop={event => drop(event, step)}>
-                    <pre class="whitespace-pre-line font-mono">
-                        {JSON.stringify(json, null, 2)}
-                    </pre>
+                    {#each sections as section}
+                        <button
+                            on:click={() => changeSection(section.id)}
+                            class="flex items-center justify-center rounded-xl p-4 border-white border w-fit m-5 backdrop-blur-sm bg-white/10 hover:bg-white/30">
+                            <div class="bg-white font-semibold font-mono rounded-md p-3 cursor-pointer">{section.name}</div>
+                        </button>
+                    {/each}
                 </div>
+
+                {#if sections.length > 0}
+                    <h2 class="text-2xl font-semibold">Editor</h2>
+                    <div class="flex">
+                        <button class="font-mono font-semibold py-3 px-10 border rounded-l-md hover:bg-zinc-100" on:click={() => currentEdit = "dialogues"}>Dialogues</button>
+                        <button class="font-mono font-semibold py-3 px-8 border hover:bg-zinc-100" on:click={() => currentEdit = "talking"}>Talking</button>
+                        <button class="font-mono font-semibold py-3 px-8 border rounded-r-md hover:bg-zinc-100" on:click={() => currentEdit = "jabbering"}>Jabbering</button>
+                    </div>
+                    <div 
+                        class="bg-stone-800 text-white w-full h-full rounded-md" 
+                        on:dragover={handleDragOver} 
+                        on:drop={handleDrop}
+                    >
+                        {#each texts as text}
+                            <div class="p-5">
+                                <span>{text.character.name}</span>
+                                <input type="text" bind:value={text.text} placeholder={text.character.name} />
+                            </div>
+                        {/each}
+                    </div>
+                {/if}
             {/if}
         </div>
     </div>
@@ -182,7 +246,7 @@
     </form>
 </Modal>
 
-<Modal title="Add Dialogue Node" bind:showModal={showDialogueModal}>
+<Modal title="Add Text" bind:showModal={showDialogueModal}>
     <form>
         {#each newDialogue.steps as step}
             <div class="mb-4">
@@ -198,7 +262,7 @@
         
         <div class="flex items-center justify-end">
             <button 
-                on:click={() => addDialogue(json.currentLevel["sections"]["section_" + currentSection]["texts"])} 
+                on:click={() => addText(json.currentLevel["sections"]["section_" + currentSection]["texts"])} 
                 type="button"
                 class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
                 Add Character
