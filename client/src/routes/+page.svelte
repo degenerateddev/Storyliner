@@ -23,6 +23,9 @@
     var currentEdit = "dialogues"; // dialogues, talking, jabbering
 
     var hoveringOverArea = false;
+    /**
+	 * @type {any[]}
+	 */
     var texts = [];
 
     onMount(() => {
@@ -129,9 +132,18 @@
     function handleDragOver(event) {
         event.preventDefault();
     }
+
+    function saveData(data) {
+        if (data === "json") {
+
+        } else if (data === "characters") {
+            
+        }
+    }
 </script>
 
 <main>
+    <!-- svelte-ignore a11y_consider_explicit_label -->
     <button on:click={() => exportJson("json")} class="fixed bottom-5 right-10 rounded-xl p-4 border-white border backdrop-blur-sm bg-white/30 hover:bg-white/10">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-white size-12 rotate-180">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -146,6 +158,7 @@
 
                 {#each characters as character}
                     <div class="flex items-end justify-center">
+                        <!-- svelte-ignore a11y_no_static_element_interactions -->
                         <div 
                             class="bg-white font-semibold font-mono rounded-md p-3 cursor-pointer"
                             draggable="true"
@@ -156,6 +169,7 @@
                     </div>
                 {/each}
 
+                <!-- svelte-ignore a11y_consider_explicit_label -->
                 <button on:click={() => exportJson("characters")} class="mt-auto rounded-xl w-fit mx-auto p-4 m-5 border-white border backdrop-blur-sm bg-white/30 hover:bg-white/10">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-white size-12 rotate-180">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -166,7 +180,7 @@
 
         <div class="flex flex-col flex-grow">
             <h2 class="text-2xl font-semibold">Levels (currently selected: {currentLevel})</h2>
-            <div class="flex gap-5 justify-start bg-teal-400 h-[10vh] rounded-md">
+            <div class="flex gap-5 justify-start bg-teal-400 min-h-fit rounded-md">
                 <Add event={() => addLevel()} />
 
                 {#each levels as level}
@@ -180,7 +194,7 @@
 
             {#if levels.length > 0}
                 <h2 class="text-2xl font-semibold">Sections</h2>
-                <div class="flex gap-5 justify-start bg-red-400 h-[10vh] rounded-md">
+                <div class="flex gap-5 justify-start bg-red-400 min-h-fit rounded-md">
                     <Add event={() => addSection()} />
 
                     {#each sections as section}
@@ -199,11 +213,22 @@
                         <button class="font-mono font-semibold py-3 px-8 border hover:bg-zinc-100" on:click={() => currentEdit = "talking"}>Talking</button>
                         <button class="font-mono font-semibold py-3 px-8 border rounded-r-md hover:bg-zinc-100" on:click={() => currentEdit = "jabbering"}>Jabbering</button>
                     </div>
+                    <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div 
                         class="bg-stone-800 text-white w-full h-full rounded-md" 
                         on:dragover={handleDragOver} 
                         on:drop={handleDrop}
                     >
+                        <div class="relative">
+                            <div class="absolute inset-0 top-5 left-0">
+                                <!-- svelte-ignore a11y_consider_explicit_label -->
+                                <button on:click={() => saveData("json")}>
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                                    </svg>                                      
+                                </button>
+                            </div>
+                        </div>
                         {#each texts as text}
                             <div class="p-5">
                                 <span>{text.character.name}</span>
@@ -224,14 +249,17 @@
 <Modal title="Add Character" bind:showModal={showCharacterModal}>
     <form>
         <div class="mb-4">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-gray-700 text-sm font-bold mb-2">Name</label>
             <input bind:value={newCharacter.name} name="name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
         </div>
         <div class="mb-4">
-            <label class="block text-gray-700 text-sm font-bold mb-2" for="avatar">Avatar</label>
+            <!-- svelte-ignore a11y_label_has_associated_control -->
+            <label class="block text-gray-700 text-sm font-bold mb-2">Avatar</label>
             <input bind:value={newCharacter.avatar} class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="avatar" type="file" accept="image/*">
         </div>
         <div class="mb-4">
+            <!-- svelte-ignore a11y_label_has_associated_control -->
             <label class="block text-gray-700 text-sm font-bold mb-2">Meta</label>
             <textarea bind:value={newCharacter.meta} name="meta" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
         </div>
@@ -250,11 +278,13 @@
     <form>
         {#each newDialogue.steps as step}
             <div class="mb-4">
+                <!-- svelte-ignore a11y_label_has_associated_control -->
                 <label class="block text-gray-700 text-sm font-bold mb-2">Meta</label>
                 <textarea bind:value={newDialogue.meta} name="meta" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
             </div>
 
             <div class="mb-4">
+                <!-- svelte-ignore a11y_label_has_associated_control -->
                 <label class="block text-gray-700 text-sm font-bold mb-2">Step</label>
                 <input bind:value={step} name="step" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
             </div>
