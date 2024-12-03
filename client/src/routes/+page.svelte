@@ -13,8 +13,14 @@
     var talkings = sections.flatMap(section => section.texts.talking) || [];
     var jabberings = sections.flatMap(section => section.texts.jabbering) || [];
 
+    var success = false;
+    var error = false;
+    var errorMessage = "";
+
     var showCharacterModal = false;
     var showDialogueModal = false;
+    var showRemovalModal = false;
+    var toBeRemoved = null;
     var newCharacter = { name: '', avatar: '', meta: '' };
     var newDialogue = { steps: [], meta: '' }
 
@@ -47,6 +53,7 @@
             newDialogue = { steps: [], meta: '' };
 
             saveJSON("json", json);
+            saveToDB(json, "/actions/dialogue", "POST");
         }
     }
 
@@ -59,6 +66,7 @@
             newCharacter = { name: '', avatar: '', meta: '' };
 
             saveJSON("characters", characters);
+            saveToDB(characters, "/actions/character", "POST");
         }
     }
 
@@ -75,6 +83,7 @@
             json = json;
 
             saveJSON("json", json);
+            saveToDB(json, "/actions/dialogue", "POST");
         }
     }
 
@@ -93,7 +102,26 @@
             json = json;
 
             saveJSON("json", json);
+            saveToDB(json, "/actions/dialogue", "POST");
         }
+    }
+
+    function removeCharacter(id) {
+        characters = characters.filter(character => character.id !== id);
+        characters = characters;
+
+        showCharacterModal = false;
+        newCharacter = { name: '', avatar: '', meta: '' };
+
+        saveJSON("characters", characters);
+        saveToDB(characters, "/actions/character", "DELETE");
+        
+        showRemovalModal = false;
+    }
+
+    function initiateRemoval(elem) {
+        toBeRemoved = elem;
+        showRemovalModal = true;
     }
 
     function exportJson(entry) {
@@ -109,6 +137,26 @@
 
     function saveJSON(key, data) {
         localStorage.setItem(key, JSON.stringify(data));
+    }
+
+    async function saveToDB(data, url, method) {
+        const response = await fetch(url, {
+            method,
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        });
+
+        if (response.ok) {
+            success = true;
+            error = false;
+        
+        } else {
+            success = false;
+            error = true;
+            errorMessage = response.statusText;
+        }
     }
 
     function changeLevel(level) {
@@ -132,14 +180,6 @@
     function handleDragOver(event) {
         event.preventDefault();
     }
-
-    function saveData(data) {
-        if (data === "json") {
-
-        } else if (data === "characters") {
-            
-        }
-    }
 </script>
 
 <main>
@@ -157,7 +197,7 @@
                 <Add event={() => showCharacterModal = true} />
 
                 {#each characters as character}
-                    <div class="flex items-end justify-center">
+                    <button class="flex items-end justify-center" on:click={() => { initiateRemoval(character.name) }}>
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
                         <div 
                             class="bg-white font-semibold font-mono rounded-md p-3 cursor-pointer"
@@ -165,8 +205,7 @@
                             on:dragstart={(event) => handleDragStart(event, character)}
                         >
                             {character.name}
-                        </div>
-                    </div>
+                    </button>
                 {/each}
 
                 <!-- svelte-ignore a11y_consider_explicit_label -->
@@ -222,10 +261,10 @@
                         <div class="relative">
                             <div class="absolute inset-0 top-5 left-0">
                                 <!-- svelte-ignore a11y_consider_explicit_label -->
-                                <button on:click={() => saveData("json")}>
+                                <button>
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-                                    </svg>                                      
+                                    </svg>
                                 </button>
                             </div>
                         </div>
@@ -240,10 +279,6 @@
             {/if}
         </div>
     </div>
-
-    <form method="POST" action="?/addDialogueData">
-        <input type="hidden" name="json" value={JSON.stringify(json)} />
-    </form>
 </main>
 
 <Modal title="Add Character" bind:showModal={showCharacterModal}>
@@ -298,5 +333,23 @@
                 Add Character
             </button>
         </div>
+    </form>
+</Modal>
+
+<Modal title="Remove" bind:showModal={showRemovalModal}>
+    <form>
+        {#if toBeRemoved}
+            <div class="mb-4">
+                <p>Are you sure you want to remove {toBeRemoved.name}?</p>
+            </div>
+            <div class="flex items-center justify-end">
+                <button 
+                    on:click={() => removeCharacter(toBeRemoved.id) }
+                    type="button" 
+                    class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Remove
+                </button>
+            </div>
+        {/if}
     </form>
 </Modal>
