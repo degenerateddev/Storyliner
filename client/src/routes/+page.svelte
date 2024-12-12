@@ -161,6 +161,7 @@
 
     function changeLevel(level) {
         currentLevel = level;
+        currentSection = 0;
     }
 
     function changeSection(section) {
@@ -197,14 +198,18 @@
                 <Add event={() => showCharacterModal = true} />
 
                 {#each characters as character}
-                    <button class="flex items-end justify-center" on:click={() => { initiateRemoval(character.name) }}>
+                    <button 
+                        title={character.description}
+                        on:click={() => { initiateRemoval(character.name) }}
+                        class="flex items-center justify-center rounded-xl p-4 border-white border w-fit m-5 backdrop-blur-sm bg-white/10 hover:bg-white/30">
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
-                        <div 
+                        <div
                             class="bg-white font-semibold font-mono rounded-md p-3 cursor-pointer"
                             draggable="true"
                             on:dragstart={(event) => handleDragStart(event, character)}
                         >
                             {character.name}
+                        </div>
                     </button>
                 {/each}
 
@@ -224,6 +229,7 @@
 
                 {#each levels as level}
                     <button 
+                        title={level.description}
                         on:click={() => changeLevel(level.id)}
                         class="flex items-center justify-center rounded-xl p-4 border-white border w-fit m-5 backdrop-blur-sm bg-white/10 hover:bg-white/30">
                         <div class="bg-white font-semibold font-mono rounded-md p-3 cursor-pointer">{level.name}</div>
@@ -238,6 +244,7 @@
 
                     {#each sections as section}
                         <button
+                            title={section.description}
                             on:click={() => changeSection(section.id)}
                             class="flex items-center justify-center rounded-xl p-4 border-white border w-fit m-5 backdrop-blur-sm bg-white/10 hover:bg-white/30">
                             <div class="bg-white font-semibold font-mono rounded-md p-3 cursor-pointer">{section.name}</div>
