@@ -1,81 +1,75 @@
 {
     "levels": [
         {
-            "level_1": {
-                "id": "1",
-                "name": "First Level",
-                "description": "Short level description",
-                "sections": [
-                    {
-                        "section_1": {
-                            "id": "1",
-                            "name": "First Section",
-                            "description": "Short section description",
-                            "texts": {
-                                "dialogues": [
-                                    {
-                                        "d_1": {
-                                            "meta": {
-                                                "custom_key": "Custom data"
-                                            },
-                                            "steps": [
-                                                {
-                                                    "s_1": {
-                                                        "character": "characterId",
-                                                        "text": "Short dialogue opening line"
-                                                    }
-                                                },
-                                                {
-                                                    "s_2": {
-                                                        "character": "characterId",
-                                                        "text": "Short dialogue opening line"
-                                                    }
-                                                }
-                                            ]
+            "id": "0",
+            "name": "First Level",
+            "description": "Short level description",
+            "sections": [
+                {
+                    "id": "0",
+                    "name": "First Section",
+                    "description": "Short section description",
+                    "texts": [
+                        {
+                            "meta": {
+                                "position": "0,0",
+                                "custom_key": "Custom data"
+                            },
+                            "type": "dialogue",
+                            "steps": [
+                                {
+                                    "id": "s_1",
+                                    "character": "characterId",
+                                    "text": "Short dialogue opening line",
+                                    "next": ["s_2"]
+                                },
+                                {
+                                    "id": "s_2",
+                                    "character": "characterId",
+                                    "text": "Short dialogue response",
+                                    "next": [
+                                        {
+                                            "id": "s_3",
+                                            "condition": "playerChoice == 'option1'"
+                                        },
+                                        {
+                                            "id": "s_4",
+                                            "condition": "playerChoice == 'option2'"
                                         }
-                                    }
-                                ],
-                                "talking": [
-                                    {
-                                        "t_1": {
-                                            "steps": [
-                                                {
-                                                    "s_1": {
-                                                        "character": "characterId",
-                                                        "text": "Short talking opening line"
-                                                    }
-                                                },
-                                                {
-                                                    "s_2": {
-                                                        "character": "characterId",
-                                                        "text": "Short talking line"
-                                                    }
-                                                }
-                                            ]
-                                        }
-                                    }
-                                ],
-                                "jabbering": [
-                                    {
-                                        "j_1": {
-                                            "character": "characterId",
-                                            "text": "Short jabber"
-                                        }
-                                    }
-                                ]
-                            }
+                                    ]
+                                },
+                                {
+                                    "id": "s_3",
+                                    "character": "characterId",
+                                    "text": "Response to option 1",
+                                    "next": []
+                                },
+                                {
+                                    "id": "s_4",
+                                    "character": "characterId",
+                                    "text": "Response to option 2",
+                                    "next": []
+                                }
+                            ]
+                        },
+                        {
+                            "meta": {
+                                "position": "0,0",
+                                "custom_key": "Custom data"
+                            },
+                            "type": "jabber",
+                            "character": "characterId",
+                            "text": "Short jabber"
                         }
-                    }
-                ]
-            }
+                    ]
+                }
+            ]
         },
         {
-            "level_2": {
-                "id": "2",
-                "name": "Second Level",
-                "description": "Another level description",
-                "sections": []
-            }
+            "id": "1",
+            "name": "Second Level",
+            "description": "Another level description",
+            "sections": []
         }
     ]
 }

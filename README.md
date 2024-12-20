@@ -8,88 +8,37 @@
         "description": "Short level description",
         "sections": [
             {
-                "section_1": {
-                    "name": "First Section",
-                    "description": "Short section description",
-                    "texts": {
-                        "dialogue": [
+                "name": "First Section",
+                "description": "Short section description",
+                "texts": [
+                    {
+                        "meta": {
+                            "custom_key": "Custom data"
+                        },
+                        "type": "dialogue",
+                        "steps": [
                             {
-                                "d_1": {
-                                    "meta": {
-                                        "custom_key": "Custom data"
-                                    },
-                                    "steps": [
-                                        {
-                                            "s_1": {
-                                                "character": "characterId",
-                                                "text": "Short dialogue opening line"
-                                            }
-                                        },
-                                        {
-                                            "s_2": {
-                                                "character": "characterId",
-                                                "text": "Short dialogue opening line"
-                                            }
-                                        },
-                                        ...
-                                    ]
-                                }
-                            },
-                            {
-                                "d_2": {
-                                    ...
-                                }
-                            },
-                            ...
-                        ],
-                        "talking": [
-                            {
-                                "t_1": {
-                                    "steps": [
-                                        {
-                                            "s_1": {
-                                                "character": "characterId",
-                                                "text": "Short talking opening line"
-                                            }
-                                        },
-                                        {
-                                            "s_2": {
-                                                "character": "characterId",
-                                                "text": "Short talking line"
-                                            }
-                                        },
-                                        ...
-                                    ]
-                                }
-                            },
-                            {
-                                "t_2": {
-                                    ...
-                                }
-                            },
-                            ...
-                        ],
-                        "jabbering": [
-                            {
-                                "j_1": {
+                                "s_1": {
                                     "character": "characterId",
-                                    "text": "Short jabber"
+                                    "text": "Short dialogue opening line"
                                 }
                             },
-                            ...
+                            {
+                                "s_2": {
+                                    "character": "characterId",
+                                    "text": "Short dialogue opening line"
+                                }
+                            },
                         ]
+                    },
+                    {
+                        "type": "jabber"
+                        "character": "characterId",
+                        "text": "Short jabber"
                     }
-                }
-            },
-            {
-                "section_2": {
-                    ...
-                }
+                ]
             }
         ]
-    },
-    "level_2": {
-        ...
     }
 }
 ```
@@ -102,63 +51,35 @@ const data = {
         description: levelDescription,
         sections: [
             {
-                section_1: {
-                    name: "First Section",
-                    description: "Short section description",
-                    texts: {
-                        dialogue: [
+                name: "First Section",
+                description: "Short section description",
+                texts: [
+                    {
+                        meta: {
+                            custom_key: "Custom data"
+                        },
+                        "type": "dialogue"
+                        steps: [
                             {
-                                d_1: {
-                                    meta: {
-                                        custom_key: "Custom data"
-                                    },
-                                    steps: [
-                                        {
-                                            s_1: {
-                                                character: "characterId",
-                                                text: "Short dialogue opening line"
-                                            }
-                                        },
-                                        {
-                                            s_2: {
-                                                character: "characterId",
-                                                text: "Short dialogue opening line"
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        ],
-                        talking: [
-                            {
-                                t_1: {
-                                    steps: [
-                                        {
-                                            s_1: {
-                                                character: "characterId",
-                                                text: "Short talking opening line"
-                                            }
-                                        },
-                                        {
-                                            s_2: {
-                                                character: "characterId",
-                                                text: "Short talking line"
-                                            }
-                                        }
-                                    ]
-                                }
-                            }
-                        ],
-                        jabbering: [
-                            {
-                                j_1: {
+                                s_1: {
                                     character: "characterId",
-                                    text: "Short jabber"
+                                    text: "Short dialogue opening line"
+                                }
+                            },
+                            {
+                                s_2: {
+                                    character: "characterId",
+                                    text: "Short dialogue opening line"
                                 }
                             }
                         ]
+                    },
+                    {
+                        "type": "jabber",
+                        character: "characterId",
+                        text: "Short jabber"
                     }
-                }
+                ]
             }
         ]
     }
@@ -170,9 +91,8 @@ const data = {
 
 ```
 
-### Main difference between dialogue, talking and jabbering are:
-- dialogue is for more complex text which can include custom metadata, dialogue trees, they run in a certain order and can only be ran once (e.g. Dialogue going back and forth between the PMC and an important story character)
-- talking is for simple text, dialogue trees, they run in a certain order and can be ran indefinitely (e.g. Shopkeepers, Traders)
+### Main difference between dialogue and jabbering are:
+- dialogue is for more complex text and dialogue trees, they run in a certain order. e.g. Dialogue going back and forth between the PMC and an important story character
 - jabbering is for simple text, only linear dialogue and always looping (e.g. Random NPCs with no story relevance)
 
 Base System for complex dialogue consisting of step based dialogue!

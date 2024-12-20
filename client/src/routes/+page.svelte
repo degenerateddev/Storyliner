@@ -9,9 +9,6 @@
     var characters = json.characters || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem("characters"))) || [];
     var levels = json.levels || [];
     var sections = levels.flatMap(level => level.sections) || [];
-    var dialogues = sections.flatMap(section => section.texts.dialogues) || [];
-    var talkings = sections.flatMap(section => section.texts.talking) || [];
-    var jabberings = sections.flatMap(section => section.texts.jabbering) || [];
 
     var success = false;
     var error = false;
@@ -26,7 +23,6 @@
 
     var currentLevel = 0;
     var currentSection = 0;
-    var currentEdit = "dialogues"; // dialogues, talking, jabbering
 
     var hoveringOverArea = false;
     /**
@@ -53,7 +49,6 @@
             newDialogue = { steps: [], meta: '' };
 
             saveJSON("json", json);
-            saveToDB(json, "/actions/dialogue", "POST");
         }
     }
 
@@ -66,7 +61,6 @@
             newCharacter = { name: '', avatar: '', meta: '' };
 
             saveJSON("characters", characters);
-            saveToDB(characters, "/actions/character", "POST");
         }
     }
 
@@ -75,15 +69,15 @@
 
         if (name) {
             const description = prompt("Enter level description") || "";
+            const id = levels.length;
 
-            levels.push({ name, description, sections: [] });
+            levels.push({ id, name, description, sections: [] });
             levels = levels;
 
             json.levels = levels;
             json = json;
 
             saveJSON("json", json);
-            saveToDB(json, "/actions/dialogue", "POST");
         }
     }
 
@@ -92,8 +86,9 @@
 
         if (name) {
             const description = prompt("Enter section description") || "";
+            const id = json.levels[currentLevel].sections.length;
 
-            sections.push({ name, description, texts: [] });
+            sections.push({ id, name, description, texts: [] });
             sections = sections;
             console.log(sections);
 
@@ -102,7 +97,6 @@
             json = json;
 
             saveJSON("json", json);
-            saveToDB(json, "/actions/dialogue", "POST");
         }
     }
 
@@ -114,7 +108,6 @@
         newCharacter = { name: '', avatar: '', meta: '' };
 
         saveJSON("characters", characters);
-        saveToDB(characters, "/actions/character", "DELETE");
         
         showRemovalModal = false;
     }
@@ -175,15 +168,49 @@
     function handleDrop(event) {
         event.preventDefault();
         const character = JSON.parse(event.dataTransfer.getData("character"));
-        texts.push({ character, text: '' });
+        console.log(currentLevel)
+        console.log(currentSection)
+        console.log(json);
+        console.log(character);
+        console.log(json.levels[currentLevel].sections[currentSection]);
+        json.levels[currentLevel].sections[currentSection].texts.push({ character, text: '', type: "jabbering" });
+        json = json;
+        console.log(json);
     }
 
     function handleDragOver(event) {
         event.preventDefault();
     }
+
+    function editNode(text, level, section, id, step) {
+        let editing = json.levels[level].sections[section].texts[id]
+        
+        if (editing.type === "dialogue") {
+            if (text !== editing.text) {
+                json.levels[level].sections[section].texts[id].steps[step].text = text;
+            }
+        } else {
+            if (text !== editing.text) {
+                json.levels[level].sections[section].texts[id].text = text;
+            }
+        }
+
+        json = json;
+    }
+
+    function editType(text, level, section, id) {
+        let editing = json.levels[level].sections[section].texts[id]
+        
+        if (type !== editing.type) {
+            json.levels[level].sections[section].texts[id].type = type;
+        }
+
+        json = json;
+    }
 </script>
 
 <main>
+    {JSON.stringify(json)}
     <!-- svelte-ignore a11y_consider_explicit_label -->
     <button on:click={() => exportJson("json")} class="fixed bottom-5 right-10 rounded-xl p-4 border-white border backdrop-blur-sm bg-white/30 hover:bg-white/10">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="text-white size-12 rotate-180">
@@ -238,7 +265,7 @@
             </div>
 
             {#if levels.length > 0}
-                <h2 class="text-2xl font-semibold">Sections</h2>
+                <h2 class="text-2xl font-semibold">Sections (currently selected: {currentSection})</h2>
                 <div class="flex gap-5 justify-start bg-red-400 min-h-fit rounded-md">
                     <Add event={() => addSection()} />
 
@@ -254,31 +281,40 @@
 
                 {#if sections.length > 0}
                     <h2 class="text-2xl font-semibold">Editor</h2>
-                    <div class="flex">
-                        <button class="font-mono font-semibold py-3 px-10 border rounded-l-md hover:bg-zinc-100" on:click={() => currentEdit = "dialogues"}>Dialogues</button>
-                        <button class="font-mono font-semibold py-3 px-8 border hover:bg-zinc-100" on:click={() => currentEdit = "talking"}>Talking</button>
-                        <button class="font-mono font-semibold py-3 px-8 border rounded-r-md hover:bg-zinc-100" on:click={() => currentEdit = "jabbering"}>Jabbering</button>
-                    </div>
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div 
-                        class="bg-stone-800 text-white w-full h-full rounded-md" 
+                        class="bg-stone-800 w-full h-full rounded-md" 
                         on:dragover={handleDragOver} 
                         on:drop={handleDrop}
                     >
-                        <div class="relative">
-                            <div class="absolute inset-0 top-5 left-0">
-                                <!-- svelte-ignore a11y_consider_explicit_label -->
-                                <button>
-                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
-                        {#each texts as text}
-                            <div class="p-5">
-                                <span>{text.character.name}</span>
-                                <input type="text" bind:value={text.text} placeholder={text.character.name} />
+                        {#each json.levels[currentLevel].sections[currentSection].texts as text, textIndex}
+                            <div class="container w-fit text-white rounded-md p-5 bg-black border-white border">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        {text.character.name}
+                                    </div>
+                                    <div>
+                                        <img src="{text.character.avatar}" alt="avatar" />
+                                    </div>
+                                </div>
+
+                                <div class="flex flex-col gap-2">
+                                    {#if text.type === "dialogue"}
+                                        {#each text.steps as step, stepIndex}
+                                            <div class="flex items-center justify-between">
+                                                <p>{JSON.stringify(step.text)}</p>
+                                                <input type="text" class="text-black" bind:value={step.text} />
+                                                <button on:click={() => editNode(step.text, currentLevel, currentSection, textIndex, stepIndex)}>Edit</button>
+                                            </div>
+                                        {/each}
+                                    {:else}
+                                        <p>{JSON.stringify(text.text)}</p>
+                                        <input type="text" class="text-black" bind:value={text.text} />
+                                        <button on:click={() => editNode(text, currentLevel, currentSection, textIndex)}>Edit</button>   
+                                    {/if}
+                                    
+                                    <p class="p-2 rounded-full border border-white w-fit">{text.type}</p>
+                                </div>
                             </div>
                         {/each}
                     </div>
