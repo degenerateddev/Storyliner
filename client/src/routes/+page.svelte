@@ -89,29 +89,30 @@
             newDialogue = { steps: [], meta: '' };
 
             saveJSON("json", json);
+
+            return true;
         }
+
+        return false;
     }
 
     // @ts-ignore
-    function addCharacter(name, avatar, meta) {
-        if (name) {
-            characters.push({ id: characters.length, name, avatar, meta });
-            characters = characters;
-
-            // @ts-ignore
-            showCharacterModal = false;
-
-            saveJSON("characters", characters);
+    function removeFromList(list, element) {
+        if (!element) {
+            return;
         }
-    }
 
-    // @ts-ignore
-    function removeCharacter(id) {
+        if (list.length === 0) {
+            return;
+        }
+
+        if (!list.find(elem => elem === element)) {
+            return;
+        }
+        
         // @ts-ignore
-        characters = characters.filter(character => character.id !== id);
-        characters = characters;
-
-        saveJSON("characters", characters);
+        list = list.filter(elem => elem !== element);
+        return list;
     }
 
     // @ts-ignore
@@ -229,12 +230,12 @@
             title: "Add Level",
             html: `
                 <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold  ">Name</label>
+                    <label class="block text-gray-700 text-sm font-bold">Name</label>
                     <input id="lName" name="name" class="swal2-input shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
                 </div>
                 <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold  ">Name</label>
-                    <input id="lDesc" name="description" class="swal2-input shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+                    <label class="block text-gray-700 text-sm font-bold">Description</label>
+                    <textarea id="lDesc" name="description" class="swal2-textarea shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
                 </div>
             `,
             focusConfirm: false,
@@ -243,12 +244,12 @@
             showLoaderOnConfirm: true,
             showConfirmButton: true,
             preConfirm: () => {
-                return [
+                return {
                     // @ts-ignore
-                    document.getElementById("lName").value,
+                    "name": document.getElementById("lName").value,
                     // @ts-ignore
-                    document.getElementById("lDesc").value
-                ];
+                    "description": document.getElementById("lDesc").value
+                };
             }
         });
         if (formValues) {
@@ -258,15 +259,22 @@
             const description = formValues.description;
 
             if (name) {
-                const id = levels.length;
+                const randID = Math.floor(Math.random() * 10000);
 
-                levels.push({ id, name, description, sections: [] });
+                levels.push({ id: randID, name, description, sections: [] });
                 levels = levels;
-
+                
                 json.levels = levels;
                 json = json;
 
                 saveJSON("json", json);
+
+                Swal.fire({
+                    title: "Level Added",
+                    icon: "success",
+                    showConfirmButton: false,
+                    timer: 1500
+                });
             }
         }
     }
@@ -276,12 +284,12 @@
             title: "Add Section",
             html: `
                 <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold  ">Name</label>
+                    <label class="block text-gray-700 text-sm font-bold">Name</label>
                     <input id="sName" name="name" class="swal2-input shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
                 </div>
                 <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold  ">Name</label>
-                    <input id="sDesc" name="description" class="swal2-input shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+                    <label class="block text-gray-700 text-sm font-bold">Description</label>
+                    <textarea id="sDesc" name="description" class="swal2-textarea shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
                 </div>
             `,
             focusConfirm: false,
@@ -290,12 +298,12 @@
             showLoaderOnConfirm: true,
             showConfirmButton: true,
             preConfirm: () => {
-                return [
+                return {
                     // @ts-ignore
-                    document.getElementById("sName").value,
+                    "name": document.getElementById("sName").value,
                     // @ts-ignore
-                    document.getElementById("sDesc").value
-                ];
+                    "description": document.getElementById("sDesc").value
+                };
             }
         });
 
@@ -306,17 +314,23 @@
             const description = formValues.description;
 
             if (name) {
-                const id = json.levels[currentLevel].sections.length;
+                const randID = Math.floor(Math.random() * 10000);
 
-                sections.push({ id, name, description, texts: [] });
+                sections.push({ id: randID, name, description, texts: [] });
                 sections = sections;
-                console.log(sections);
 
                 json.levels[currentLevel]["sections"] = sections;
                 levels = json.levels;
                 json = json;
 
                 saveJSON("json", json);
+
+                Swal.fire({
+                    title: "Section Added",
+                    icon: "success",
+                    showConfirmButton: false,
+                    timer: 1500
+                });
             }
         }
     }
@@ -325,19 +339,21 @@
         const { value: formValues } = await Swal.fire({
             title: "Add Character",
             html: `
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold">Name</label>
-                    <input id="cName" name="name" class="swal2-input shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
-                </div>
+                <div class="">
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold">Name</label>
+                        <input id="cName" name="name" class="swal2-input shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+                    </div>
 
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold">Avatar</label>
-                    <input id="cAvatar" class="swal2-input shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="avatar" type="file" accept="image/*">
-                </div>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold">Avatar</label>
+                        <input id="cAvatar" class="swal2-file shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="avatar" type="file" accept="image/*">
+                    </div>
 
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold">Meta</label>
-                    <textarea id="cMeta" name="meta" class="swal2-input shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+                    <div class="mb-4">
+                        <label class="block text-gray-700 text-sm font-bold">Meta</label>
+                        <textarea id="cMeta" name="meta" class="swal2-textarea shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+                    </div>
                 </div>
             `,
             focusConfirm: false,
@@ -346,29 +362,43 @@
             showLoaderOnConfirm: true,
             showConfirmButton: true,
             preConfirm: () => {
-                return [
+                return {
                     // @ts-ignore
-                    document.getElementById("cName").value,
+                    "name": document.getElementById("cName").value,
                     // @ts-ignore
-                    document.getElementById("cAvatar").value,
+                    "avatar": document.getElementById("cAvatar").value,
                     // @ts-ignore
-                    document.getElementById("cMeta").value
-                ];
+                    "meta": document.getElementById("cMeta").value
+                };
             }
         });
 
         if (formValues) {
-            addCharacter(formValues.name, formValues.avatar, formValues.meta);
-            Swal.fire(JSON.stringify(formValues));
+            const name = formValues.name;
+            const avatar = formValues.avatar;
+            const meta = formValues.meta;
+
+            if (name) {
+                const randID = Math.floor(Math.random() * 10000);
+                
+                characters.push({ id: randID, name, avatar, meta });
+                characters = characters;
+                saveJSON("characters", characters);
+
+                Swal.fire({
+                    title: "Character Added",
+                    icon: "success",
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
         }
     }
 
     /**
 	 * @param {any} element
 	 */
-    async function toggleRemovalModal(element) {
-        const toBeRemoved = element;
-
+    async function toggleRemovalModal(list, element) {
         const { value: formValues } = await Swal.fire({
             title: "Remove",
             text: 'Are you sure you want to remove this element?',
@@ -376,12 +406,23 @@
             focusConfirm: false,
             showCancelButton: true,
             showCloseButton: true,
-            showLoaderOnConfirm: true,
             showConfirmButton: true
         });
 
         if (formValues) {
-            removeCharacter(toBeRemoved.id)
+            const newList = removeFromList(list, element)
+
+            if (newList) {
+                characters = newList;
+                saveJSON("characters", characters);
+
+                Swal.fire({
+                    title: "Removed",
+                    icon: "success",
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
         }
     }
 
@@ -435,20 +476,18 @@
             showLoaderOnConfirm: true,
             showConfirmButton: true,
             preConfirm: () => {
-                return [
+                return {
                     // @ts-ignore
-                    document.getElementById("type").value,
+                    "type": document.getElementById("type").value,
                     // @ts-ignore
-                    document.getElementById("tText").value,
+                    "text": document.getElementById("tText").value,
                     // @ts-ignore
-                    document.getElementById("tMeta").value
-                ];
+                    "meta": document.getElementById("tMeta").value
+                };
             }
         });
 
         if (formValues) {
-            Swal.fire(JSON.stringify(formValues));
-
             const type = formValues.type;
             const text = formValues.text;
             const meta = formValues.meta;
@@ -456,6 +495,15 @@
             if (type) {
                 json.levels[currentLevel].sections[currentSection].texts.push({ character: characters[0], text, type });
                 json = json;
+
+                saveJSON("json", json);
+
+                Swal.fire({
+                    title: "Text Added",
+                    icon: "success",
+                    showConfirmButton: false,
+                    timer: 1500
+                });
             }
         }
     }
@@ -484,7 +532,7 @@
                 {#each characters as character}
                     <button 
                         title={character.description}
-                        on:click={() => { toggleRemovalModal(character.name) }}
+                        on:click={() => { toggleRemovalModal(characters, character) }}
                         class="flex items-center justify-center rounded-xl p-4 border-white border w-fit m-5 backdrop-blur-sm bg-white/10 hover:bg-white/30">
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
                         <div
