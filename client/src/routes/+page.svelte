@@ -15,6 +15,8 @@
         MiniMap
     } from '@xyflow/svelte';
     import '@xyflow/svelte/dist/style.css';
+	import DialogueNode from "$lib/components/DialogueNode.svelte";
+	import JabberingNode from "$lib/components/JabberingNode.svelte";
 
     // @ts-ignore
     export let data;
@@ -41,31 +43,6 @@
 	 */
     // @ts-ignore
     var texts = [];
-
-    const nodes = writable([
-        {
-            id: '1',
-            type: 'input',
-            data: { label: 'Input Node' },
-            position: { x: 0, y: 0 }
-        },
-        {
-            id: '2',
-            type: 'default',
-            data: { label: 'Node' },
-            position: { x: 0, y: 150 }
-        }
-    ]);
-    const edges = writable([
-        {
-            id: '1-2',
-            type: 'default',
-            source: '1',
-            target: '2',
-            label: 'Edge Text'
-        }
-    ]);
-    const snapGrid = [25, 25];
 
     onMount(() => {
         if (json) {
@@ -170,6 +147,58 @@
     // ##################### //
     // EDITING FUNCTIONS
     // ##################### //
+    const nodeTypes = {
+        'dialogue': DialogueNode,
+        'jabbering': JabberingNode
+    }
+    const nodes = writable([
+        {
+            id: '1',
+            type: 'jabbering',
+            data: { color: writable('#00ff00') },
+            position: { x: 0, y: 0 }
+        },
+        {
+            id: '2',
+            type: 'input',
+            data: { label: 'Node' },
+            position: { x: 0, y: 150 }
+        },
+        {
+            id: '3',
+            type: 'group',
+            data: { label: 'Parent' },
+            position: { x: 200, y: 0 },
+            style: 'width: 200px; height: 200px;'
+        },
+        // this gets a child node by using the parentId option
+        {
+            id: '4',
+            data: { label: 'child 1' },
+            position: { x: 25, y: 5 },
+            // 👇
+            parentId: '3',
+            extent: 'parent'
+        },
+        {
+            id: '5',
+            data: { label: 'child 2' },
+            position: { x: 25, y: 100 },
+            // 👇
+            parentId: '3',
+            extent: 'parent'
+        },
+    ]);
+    const edges = writable([
+        {
+            id: '1-2',
+            type: 'default',
+            source: '4',
+            target: '5',
+            label: 'Edge Text'
+        }
+    ]);
+    const snapGrid = [25, 25];
 
     // @ts-ignore
     function handleDragStart(event, character) {
@@ -263,7 +292,7 @@
 
                 levels.push({ id: randID, name, description, sections: [] });
                 levels = levels;
-                
+
                 json.levels = levels;
                 json = json;
 
@@ -599,12 +628,13 @@
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
                     <div class="bg-stone-800 w-full h-full rounded-md">
                         <SvelteFlow
-                              {nodes}
-                              {edges}
-                              {snapGrid}
-                              fitView
-                              on:nodeclick={(event) => console.log('on node click', event.detail.node)}
-                            >
+                            {nodeTypes}
+                            {nodes}
+                            {edges}
+                            {snapGrid}
+                            fitView
+                            on:nodeclick={(event) => console.log('on node click', event.detail.node)}
+                        >
                               <Controls />
                               <Background variant={BackgroundVariant.Dots} />
                               <MiniMap />

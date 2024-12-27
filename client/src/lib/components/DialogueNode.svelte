@@ -1,22 +1,5 @@
 <script>
-    // @ts-nocheck
     
-	import { onMount } from "svelte";
-
-    export let characters;
-    export let text;
-    export let position = "0,0";
-
-    /**
-	 * @type {HTMLDivElement}
-	 */
-    let elem;
-
-    onMount(() => {
-        elem.style.position = "absolute";
-        elem.style.left = `${position.split(",")[0]}px`;
-        elem.style.top = `${position.split(",")[1]}px`;
-    });
 </script>
 
 <div bind:this={elem} class="container w-fit text-white rounded-md p-5 bg-black border-white border">
