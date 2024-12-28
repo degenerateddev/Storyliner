@@ -1,8 +1,14 @@
 <script>
-    
+    // https://svelteflow.dev/examples/nodes/connection-limit
+    // https://svelteflow.dev/examples/nodes/node-resizer
+    // https://svelteflow.dev/examples/nodes/add-node-on-edge-drop
+    // https://svelteflow.dev/examples/nodes/update-node
+    // https://svelteflow.dev/examples/interaction/validation
+    // https://svelteflow.dev/examples/interaction/computing-flows
+    // https://svelteflow.dev/examples/interaction/drag-and-drop
 </script>
 
-<div bind:this={elem} class="container w-fit text-white rounded-md p-5 bg-black border-white border">
+<!-- <div class="container w-fit text-white rounded-md p-5 bg-black border-white border">
     {#if characters.find(character => character.id === text.character)}
         <div class="flex items-center justify-between">
             <div>
@@ -31,4 +37,4 @@
 
         <p class="p-2 rounded-full border border-white w-fit">{text.type}</p>
     </div>
-</div>
+</div> -->

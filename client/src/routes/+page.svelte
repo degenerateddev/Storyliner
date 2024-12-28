@@ -1,22 +1,15 @@
 <script>
-// @ts-nocheck
-
     import Modal from "$lib/components/Modal.svelte";
-    import { onMount } from "svelte";
+    import { getContext, onMount } from "svelte";
 
 	import Swal from "sweetalert2";
 
-    import { writable } from "svelte/store";
     import {
-        SvelteFlow,
-        Controls,
-        Background,
-        BackgroundVariant,
-        MiniMap
+		SvelteFlowProvider,
     } from '@xyflow/svelte';
     import '@xyflow/svelte/dist/style.css';
-	import DialogueNode from "$lib/components/DialogueNode.svelte";
-	import JabberingNode from "$lib/components/JabberingNode.svelte";
+	import DnDProvider from "$lib/components/DnDProvider.svelte";
+	import Flow from "$lib/components/Flow.svelte";
 
     // @ts-ignore
     export let data;
@@ -47,6 +40,14 @@
     onMount(() => {
         if (json) {
             buildNodes();
+        }
+
+        if (localStorage.getItem("currentLevel")) {
+            currentLevel = JSON.parse(localStorage.getItem("currentLevel"));
+        }
+
+        if (localStorage.getItem("currentSection")) {
+            currentSection = JSON.parse(localStorage.getItem("currentSection"));
         }
     })
 
@@ -137,86 +138,34 @@
     function changeLevel(level) {
         currentLevel = level;
         currentSection = 0;
+
+        saveJSON("currentLevel", currentLevel);
+        saveJSON("currentSection", currentSection);
     }
 
     // @ts-ignore
     function changeSection(section) {
         currentSection = section;
+
+        saveJSON("currentSection", currentSection);
     }
 
     // ##################### //
     // EDITING FUNCTIONS
     // ##################### //
-    const nodeTypes = {
-        'dialogue': DialogueNode,
-        'jabbering': JabberingNode
-    }
-    const nodes = writable([
-        {
-            id: '1',
-            type: 'jabbering',
-            data: { color: writable('#00ff00') },
-            position: { x: 0, y: 0 }
-        },
-        {
-            id: '2',
-            type: 'input',
-            data: { label: 'Node' },
-            position: { x: 0, y: 150 }
-        },
-        {
-            id: '3',
-            type: 'group',
-            data: { label: 'Parent' },
-            position: { x: 200, y: 0 },
-            style: 'width: 200px; height: 200px;'
-        },
-        // this gets a child node by using the parentId option
-        {
-            id: '4',
-            data: { label: 'child 1' },
-            position: { x: 25, y: 5 },
-            // 👇
-            parentId: '3',
-            extent: 'parent'
-        },
-        {
-            id: '5',
-            data: { label: 'child 2' },
-            position: { x: 25, y: 100 },
-            // 👇
-            parentId: '3',
-            extent: 'parent'
-        },
-    ]);
-    const edges = writable([
-        {
-            id: '1-2',
-            type: 'default',
-            source: '4',
-            target: '5',
-            label: 'Edge Text'
+
+    const type = getContext("type");
+
+    // @ts-ignore
+    function onDragStart(event, nodeType) {
+        console.log(type)
+        //event.dataTransfer.setData("character", JSON.stringify(character));
+        if (!event.dataTransfer) {
+            return;
         }
-    ]);
-    const snapGrid = [25, 25];
 
-    // @ts-ignore
-    function handleDragStart(event, character) {
-        event.dataTransfer.setData("character", JSON.stringify(character));
-    }
-
-    // @ts-ignore
-    function handleDrop(event) {
-        event.preventDefault();
-        const character = JSON.parse(event.dataTransfer.getData("character"));
-        console.log(currentLevel)
-        console.log(currentSection)
-        console.log(json);
-        console.log(character);
-        console.log(json.levels[currentLevel].sections[currentSection]);
-        json.levels[currentLevel].sections[currentSection].texts.push({ character, text: '', type: "jabbering" });
-        json = json;
-        console.log(json);
+        type.set(nodeType);
+        event.dataTransfer.effectAllowed = "move";
     }
 
     // @ts-ignore
@@ -426,6 +375,7 @@
 
     /**
 	 * @param {any} element
+	 * @param {any} list
 	 */
     async function toggleRemovalModal(list, element) {
         const { value: formValues } = await Swal.fire({
@@ -566,8 +516,8 @@
                         <!-- svelte-ignore a11y_no_static_element_interactions -->
                         <div
                             class="bg-white font-semibold font-mono rounded-md p-3 cursor-pointer"
-                            draggable="true"
-                            on:dragstart={(event) => handleDragStart(event, character)}
+                            draggable={true}
+                            on:dragstart={(event) => onDragStart(event, "text")}
                         >
                             {character.name}
                         </div>
@@ -626,50 +576,12 @@
                 {#if sections.length > 0}
                     <h2 class="text-2xl font-semibold">Editor</h2>
                     <!-- svelte-ignore a11y_no_static_element_interactions -->
-                    <div class="bg-stone-800 w-full h-full rounded-md">
-                        <SvelteFlow
-                            {nodeTypes}
-                            {nodes}
-                            {edges}
-                            {snapGrid}
-                            fitView
-                            on:nodeclick={(event) => console.log('on node click', event.detail.node)}
-                        >
-                              <Controls />
-                              <Background variant={BackgroundVariant.Dots} />
-                              <MiniMap />
-                        </SvelteFlow>
-
-                        <!-- {#each json.levels[currentLevel].sections[currentSection].texts as text, textIndex}
-                            <div class="container w-fit text-white rounded-md p-5 bg-black border-white border">
-                                <div class="flex items-center justify-between">
-                                    <div>
-                                        {text.character.name}
-                                    </div>
-                                    <div>
-                                        <img src="{text.character.avatar}" alt="avatar" />
-                                    </div>
-                                </div>
-
-                                <div class="flex flex-col gap-2">
-                                    {#if text.type === "dialogue"}
-                                        {#each text.steps as step, stepIndex}
-                                            <div class="flex items-center justify-between">
-                                                <p>{JSON.stringify(step.text)}</p>
-                                                <input type="text" class="text-black" bind:value={step.text} />
-                                                <button on:click={() => editNode(step.text, currentLevel, currentSection, textIndex, stepIndex)}>Edit</button>
-                                            </div>
-                                        {/each}
-                                    {:else}
-                                        <p>{JSON.stringify(text.text)}</p>
-                                        <input type="text" class="text-black" bind:value={text.text} />
-                                        <button on:click={() => editNode(text, currentLevel, currentSection, textIndex)}>Edit</button>   
-                                    {/if}
-                                    
-                                    <p class="p-2 rounded-full border border-white w-fit">{text.type}</p>
-                                </div>
-                            </div>
-                        {/each} -->
+                    <div class="w-full h-full rounded-md">
+                        <SvelteFlowProvider>
+                            <DnDProvider>
+                                <Flow></Flow>
+                            </DnDProvider>
+                        </SvelteFlowProvider>
                     </div>
                 {/if}
             {/if}
