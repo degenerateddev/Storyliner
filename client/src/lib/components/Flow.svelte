@@ -5,7 +5,8 @@
 	import TextNode from "./TextNode.svelte";
 	import ColorPickerNode from "./ColorPickerNode.svelte";
 	import { writable } from "svelte/store";
-	import { getContext } from "svelte";
+	import Sidebar from "./Sidebar.svelte";
+	import { useDnD } from "$lib/utils";
 
     const nodeTypes = {
         // @ts-ignore
@@ -63,7 +64,7 @@
     ]);
     const snapGrid = [25, 25];
     // @ts-ignore
-    const type = getContext("type");
+    const type = useDnD();
     // @ts-ignore
     const { screenToFlowPosition } = useSvelteFlow();
     
@@ -130,7 +131,7 @@
     }
 </script>
 
-<main>
+<main class="h-full flex flex-col-reverse">
     <SvelteFlow
         {nodeTypes}
         {nodes}
@@ -145,6 +146,7 @@
         <Background variant={BackgroundVariant.Dots} />
         <MiniMap />
     </SvelteFlow>
+    <Sidebar />
 </main>
 
 <style>
