@@ -131,7 +131,7 @@
     }
 </script>
 
-<main class="h-full flex flex-col-reverse">
+<main class="min-h-[100vh] h-full flex flex-col-reverse">
     <SvelteFlow
         {nodeTypes}
         {nodes}
