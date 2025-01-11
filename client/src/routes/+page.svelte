@@ -1,5 +1,6 @@
 <script>
-    import { onMount, setContext } from "svelte";
+    // @ts-ignore
+    import { getContext, onMount, setContext } from "svelte";
 
 	import Swal from "sweetalert2";
 
@@ -12,6 +13,7 @@
 	import { exportJson, saveJSON } from "$lib/utils/index.js";
 
     // @ts-ignore
+    // @ts-ignore
     export let data;
 
     // @ts-ignore
@@ -22,8 +24,11 @@
     // @ts-ignore
     var sections = levels.flatMap(level => level.sections) || [];
 
+    // @ts-ignore
     var success = false;
+    // @ts-ignore
     var error = false;
+    // @ts-ignore
     var errorMessage = "";
 
     var newDialogue = { steps: [], meta: '' }
@@ -35,6 +40,7 @@
 	 * @type {any[]}
 	 */
     // @ts-ignore
+    // @ts-ignore
     var texts = [];
 
     onMount(() => {
@@ -45,14 +51,12 @@
             setContext('characters', localStorage.getItem('characters') ? JSON.parse(localStorage.getItem('characters')) : []);
         }
 
-        if (localStorage.getItem("currentLevel")) {
+        // @ts-ignore
+        let level_section = JSON.parse(localStorage.getItem('level_section'));
+        if (level_section) {
             // @ts-ignore
-            currentLevel = JSON.parse(localStorage.getItem("currentLevel"));
-        }
-
-        if (localStorage.getItem("currentSection")) {
-            // @ts-ignore
-            currentSection = JSON.parse(localStorage.getItem("currentSection"));
+            currentLevel = level_section.level;
+            currentSection = level_section.section;
         }
     })
 
@@ -60,6 +64,7 @@
         // Implement node building logic here
     }
 
+    // @ts-ignore
     // @ts-ignore
     function addText(base) {
         if (newDialogue.steps) {
@@ -87,55 +92,18 @@
     function changeLevel(level) {
         currentLevel = level;
         currentSection = 0;
-
-        saveJSON("currentLevel", currentLevel);
-        saveJSON("currentSection", currentSection);
     }
 
     // @ts-ignore
     function changeSection(section) {
         currentSection = section;
 
-        saveJSON("currentSection", currentSection);
-    }
-
-    // ##################### //
-    // EDITING FUNCTIONS
-    // ##################### //
-
-    // @ts-ignore
-    function editNode(text, level, section, id, step) {
-        let editing = json.levels[level].sections[section].texts[id]
-        
-        if (editing.type === "dialogue") {
-            if (text !== editing.text) {
-                json.levels[level].sections[section].texts[id].steps[step].text = text;
-            }
-        } else {
-            if (text !== editing.text) {
-                json.levels[level].sections[section].texts[id].text = text;
-            }
-        }
-
-        json = json;
-    }
-
-    // @ts-ignore
-    function editType(text, level, section, id) {
-        let editing = json.levels[level].sections[section].texts[id]
-        
-        // @ts-ignore
-        if (type !== editing.type) {
-            // @ts-ignore
-            json.levels[level].sections[section].texts[id].type = type;
-        }
-
-        json = json;
+        saveJSON("level_section", { level: currentLevel, section: currentSection });
     }
 
 
     // ##################### //
-    // MODAL FUNCTIONS
+    //    MODAL FUNCTIONS
     // ##################### //
     
     async function toggleLevelModal() {
@@ -273,7 +241,9 @@
                     <button 
                         title={level.description}
                         on:click={() => changeLevel(level.id)}
-                        class="flex items-center justify-center rounded-xl p-4 border-white border w-fit m-5 backdrop-blur-sm bg-white/10 hover:bg-white/30">
+                        class:bg-black={currentLevel === level.id}
+                        class:bg-white={currentLevel !== level.id}
+                        class="flex items-center justify-center rounded-xl p-4 border-white border w-fit m-5 backdrop-blur-sm">
                         <div class="bg-white font-semibold font-mono rounded-md p-3 cursor-pointer">{level.name}</div>
                     </button>
                 {/each}

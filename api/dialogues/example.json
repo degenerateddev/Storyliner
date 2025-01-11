@@ -12,54 +12,38 @@
                     "texts": [
                         {
                             "meta": {
+                                "id": "0",
                                 "position": "0,0",
+                                "type": "text",
                                 "custom_key": "Custom data"
                             },
-                            "type": "dialogue",
-                            "steps": [
-                                {
-                                    "id": "s_1",
-                                    "character": "characterId",
-                                    "text": "Short dialogue opening line",
-                                    "next": ["s_2"]
-                                },
-                                {
-                                    "id": "s_2",
-                                    "character": "characterId",
-                                    "text": "Short dialogue response",
-                                    "next": [
-                                        {
-                                            "id": "s_3",
-                                            "condition": "playerChoice == 'option1'"
-                                        },
-                                        {
-                                            "id": "s_4",
-                                            "condition": "playerChoice == 'option2'"
-                                        }
-                                    ]
-                                },
-                                {
-                                    "id": "s_3",
-                                    "character": "characterId",
-                                    "text": "Response to option 1",
-                                    "next": []
-                                },
-                                {
-                                    "id": "s_4",
-                                    "character": "characterId",
-                                    "text": "Response to option 2",
-                                    "next": []
-                                }
-                            ]
+                            "data": {
+                                "character": "characterId",
+                                "content": "Are you free tomorrow?",
+                                "next": ["1"]
+                                /* "next": [
+                                    {
+                                        "id": "1",
+                                        "condition": "playerChoice == 'No'"
+                                    },
+                                    {
+                                        "id": "2",
+                                        "condition": "playerChoice == 'Yes'"
+                                    }
+                                ] */
+                            }
                         },
                         {
                             "meta": {
-                                "position": "0,0",
+                                "id": "1",
+                                "position": "10,0",
+                                "type": "text",
                                 "custom_key": "Custom data"
                             },
-                            "type": "jabber",
-                            "character": "characterId",
-                            "text": "Short jabber"
+                            "data": {
+                                "character": "characterId",
+                                "content": "Oh, okay."
+                            }
                         }
                     ]
                 }

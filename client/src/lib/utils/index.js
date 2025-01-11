@@ -68,4 +68,14 @@ function getCharacters() {
     return characters;
 }
 
-export { exportJson, saveJSON, saveToDB, removeFromList, useDnD, getCharacters };
+function getLevelAndSection() {
+    const level_section = getContext("level_section") || {
+        level: localStorage.getItem("level"),
+        section: localStorage.getItem("section")
+    }
+    console.log(level_section);
+    
+    return { level: level_section.level, section: level_section.section };
+}
+
+export { exportJson, saveJSON, saveToDB, removeFromList, useDnD, getCharacters, getLevelAndSection };

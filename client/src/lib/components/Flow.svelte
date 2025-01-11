@@ -1,133 +1,180 @@
 <script>
     // @ts-nocheck
 
-	import { Background, BackgroundVariant, Controls, MiniMap, SvelteFlow, useSvelteFlow } from "@xyflow/svelte";
-	import TextNode from "./TextNode.svelte";
-	import ColorPickerNode from "./ColorPickerNode.svelte";
-	import { writable } from "svelte/store";
-	import Sidebar from "./Sidebar.svelte";
-	import { useDnD } from "$lib/utils";
+    import { Background, BackgroundVariant, Controls, MiniMap, SvelteFlow, useSvelteFlow } from "@xyflow/svelte";
+    import TextNode from "./TextNode.svelte";
+    import ColorPickerNode from "./ColorPickerNode.svelte";
+    import { writable } from "svelte/store";
+    import Sidebar from "./Sidebar.svelte";
+    import { useDnD, getLevelAndSection } from "$lib/utils";
+    import { getContext, onMount } from "svelte";
+	import Swal from "sweetalert2";
+
+    let level_section = JSON.parse(localStorage.getItem('level_section'));
+    let currentLevel = level_section.level;
+    let currentSection = level_section.section;
 
     const nodeTypes = {
-        // @ts-ignore
         'text': TextNode,
-        // @ts-ignore
         'color': ColorPickerNode
     }
 
-    // @ts-ignore
-    const nodes = writable([
-        {
-            id: '1',
-            type: 'text',
-            // @ts-ignore
-            data: { color: writable('#00ff00') },
-            position: { x: 0, y: 0 }
-        },
-        {
-            id: '2',
-            type: 'input',
-            data: { label: 'Node' },
-            position: { x: 0, y: 150 }
-        },
-        {
-            id: '3',
-            type: 'group',
-            data: { label: 'Parent' },
-            position: { x: 200, y: 0 },
-            style: 'width: 200px; height: 200px;'
-        },
-        {
-            id: '4',
-            data: { label: 'child 1' },
-            position: { x: 25, y: 5 },
-            parentId: '3',
-            extent: 'parent'
-        },
-        {
-            id: '5',
-            data: { label: 'child 2' },
-            position: { x: 25, y: 100 },
-            parentId: '3',
-            extent: 'parent'
-        },
-    ]);
-    // @ts-ignore
-    const edges = writable([
-        {
-            id: '1-2',
-            type: 'default',
-            source: '4',
-            target: '5',
-            label: 'Edge Text'
-        }
-    ]);
+    const nodes = writable([]);
+    const edges = writable([]);
     const snapGrid = [25, 25];
-    // @ts-ignore
     const type = useDnD();
-    // @ts-ignore
     const { screenToFlowPosition } = useSvelteFlow();
-    
-    // @ts-ignore
+
+    onMount(() => {
+        const getNodes = () => {
+            let json = JSON.parse(localStorage.getItem('json'));
+            let extractedNodeInformation = [];
+
+            json.levels.map((level, index) => {
+                if (level.id === currentLevel) {
+                    level.sections.map((section, index) => {
+                        if (section.id === currentSection) {
+                            section.texts.map((text, index) => {
+                                const position = text.meta.position.split(',');
+                                extractedNodeInformation.push({
+                                    id: text.meta.id,
+                                    type: 'text', // text.meta.type
+                                    data: { id: text.meta.id, label: "Text", content: text.data.content },
+                                    position: { x: parseFloat(position[0]), y: parseFloat(position[1]) }
+                                });
+                            });
+                        }
+                    });
+                }
+            });
+
+            return extractedNodeInformation;
+        }
+
+        const getEdges = () => {
+            let json = JSON.parse(localStorage.getItem('json'));
+            let extractedEdgeInformation = [];
+
+            json.levels.map((level, index) => {
+                if (level.id === currentLevel) {
+                    level.sections.map((section, index) => {
+                        if (section.id === currentSection) {
+                            section.texts.map((text, index) => {
+                                if (text.data.next !== null) {
+                                    extractedEdgeInformation.push({
+                                        id: `${text.meta.id}-${text.data.next}`,
+                                        type: 'default',
+                                        source: text.meta.id,
+                                        target: text.data.next,
+                                        label: 'Next'
+                                    });
+                                }
+                            })
+                        }
+                    })
+                }
+            });
+
+            return extractedEdgeInformation;
+        }
+        nodes.set(getNodes());
+        edges.set(getEdges());
+        console.log($nodes);
+        console.log($edges);
+    })
+
     function onNodeDrag({ detail: { targetNode } }) {
         console.log('on node drag', targetNode);
     }
 
-    // @ts-ignore
     function onNodeClick({ detail: { node } }) {
         console.log('on node click', node);
     }
 
-    /**
-	 * @param {{ preventDefault: () => void; dataTransfer: { dropEffect: string; }; }} event
-	 */
     function onDragOver(event) {
         event.preventDefault();
-    
+
         if (event.dataTransfer) {
             event.dataTransfer.dropEffect = 'move';
         }
     };
 
-    // @ts-ignore
     function onDrop(event) {
         event.preventDefault();
 
-        if (!$type) {
+        let json = JSON.parse(localStorage.getItem('json'));
+        let canAdd = false;
+
+        // check if currentLevel and currentSection exist in json.levels
+        json.levels.filter((level, index) => {
+            if (level.id === currentLevel) {
+                level.sections.filter((section, index) => {
+                    if (section.id === currentSection) {
+                        canAdd = true;
+                    }
+                });
+            }
+        });
+
+        if (!canAdd) {
+            Swal.fire({
+                title: "Select a level and section first",
+                icon: "error",
+                showConfirmButton: false,
+                timer: 1000
+            });
+
             return;
         }
+
+        const characterData = event.dataTransfer.getData("character");
+        if (!characterData) {
+            return;
+        }
+
+        const character = JSON.parse(characterData);
 
         const position = screenToFlowPosition({
             x: event.clientX,
             y: event.clientY
-        })
+        });
+        const randID = Math.floor(Math.random() * 10000);
 
         const newNode = {
-            id: Math.random().toString(),
-            type: $type,
+            id: randID.toString(),
+            type: "text",
             position,
-            data: { label: `${type} node` },
-            origin: [0.5, 0.0]
-        }
-        $nodes.push(newNode);
-        $nodes = $nodes;
+            data: { id: randID.toString(), label: "Text", content: "" }
+        };
 
-        const character = JSON.parse(event.dataTransfer.getData("character"));
-        // @ts-ignore
-        console.log(currentLevel)
-        // @ts-ignore
-        console.log(currentSection)
-        // @ts-ignore
-        console.log(json);
-        console.log(character);
-        // @ts-ignore
-        console.log(json.levels[currentLevel].sections[currentSection]);
-        // @ts-ignore
-        json.levels[currentLevel].sections[currentSection].texts.push({ character, text: '', type: "jabbering" });
-        // @ts-ignore
+        json.levels.map((level, index) => {
+            console.log(level.id)
+            console.log(currentLevel)
+            if (level.id === currentLevel) {
+                json.levels[currentLevel].sections.map((section, index) => {
+                    console.log(section.id)
+                    console.log(currentSection)
+                    if (section.id === currentSection) {
+                        console.log("Adding text")
+                        json.levels[currentLevel].sections[currentSection].texts.push({
+                            meta: {
+                                id: randID.toString(),
+                                position: `${position.x},${position.y}`,
+                                type: "text"
+                            },
+                            data: {
+                                character: character.id,
+                                content: ""
+                            },
+                        });
+                    }
+                });
+            }
+        });
         json = json;
-        // @ts-ignore
-        console.log(json);
+
+        nodes.update(n => [...n, newNode]);
+        localStorage.setItem('json', JSON.stringify(json));
     }
 </script>
 
@@ -154,7 +201,7 @@
       background-color: #ff0072 !important;
       color: white;
     }
-   
+
     :global(.svelte-flow.intersection-flow .svelte-flow__node) {
       display: flex;
       justify-content: center;
@@ -164,7 +211,7 @@
       border-width: 2px;
       box-shadow: 6px 6px 0 1px rgba(0, 0, 0, 0.7);
     }
-   
+
     :global(
         .svelte-flow.intersection-flow .svelte-flow__node.selected,
         .svelte-flow.intersection-flow .svelte-flow__node:hover,
@@ -173,7 +220,7 @@
       box-shadow: 6px 6px 0 1px rgba(0, 0, 0, 0.7);
       background-color: #eee;
     }
-   
+
     :global(.svelte-flow.intersection-flow .svelte-flow__handle) {
       display: none;
     }
