@@ -1,7 +1,7 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from .models import Character, Dialogue
-from .serializers import CharacterSerializer, DialogueSerializer
+from .models import Character, JSON
+from .serializers import CharacterSerializer, JSONSerializer
 from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.response import Response
@@ -9,10 +9,10 @@ from rest_framework.views import APIView
 from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 
-class DialogueViewSet(viewsets.ModelViewSet):
-    serializer_class = DialogueSerializer
+class JSONViewSet(viewsets.ModelViewSet):
+    serializer_class = JSONSerializer
     permission_classes = [IsAuthenticated]
-    queryset = Dialogue.objects.all()
+    queryset = JSON.objects.all()
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)

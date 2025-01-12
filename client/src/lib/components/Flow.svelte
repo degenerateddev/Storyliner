@@ -150,8 +150,8 @@
         let groupNodes = $nodes.find(node => node.type === 'section');
         console.log("Checking if text has been placed into group node!");
         console.log(groupNodes);
-        // Check if there is a "group" node at the drop position (group nodes have a size of 500x500)
-        let groupNode = $nodes.find(node => node.type === 'section' && position.x >= node.position.x && position.x <= node.position.x + 500 && position.y >= node.position.y && position.y <= node.position.y + 500); 
+        // Check if there is a "group" node at the drop position (group nodes have a size of 800x800)
+        let groupNode = $nodes.find(node => node.type === 'section' && position.x >= node.position.x && position.x <= node.position.x + 800 && position.y >= node.position.y && position.y <= node.position.y + 800); 
         console.log(groupNode);
 
         if (!groupNode) {
@@ -239,9 +239,9 @@
             y: event.clientY
         });
 
-        // Check if there is a "group" node at the drop position (group nodes have a size of 500x500)
+        // Check if there is a "group" node at the drop position (group nodes have a size of 800x800)
         let groupId;
-        let groupNode = $nodes.find(node => node.type === 'section' && position.x >= node.position.x && position.x <= node.position.x + 500 && position.y >= node.position.y && position.y <= node.position.y + 500); 
+        let groupNode = $nodes.find(node => node.type === 'section' && position.x >= node.position.x && position.x <= node.position.x + 800 && position.y >= node.position.y && position.y <= node.position.y + 800); 
         console.log(groupNode);
         
         if (!groupNode) {
@@ -351,7 +351,7 @@
                 });
             }
         });
-        
+
         json = json;
 
         saveJSON("json", json);

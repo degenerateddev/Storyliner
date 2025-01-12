@@ -1,3 +1,4 @@
+import { PUBLIC_API } from "$env/static/public";
 import { getContext } from "svelte";
 
 // @ts-ignore
@@ -16,38 +17,38 @@ function exportJson(entry) {
     URL.revokeObjectURL(url);
 }
 
-// @ts-ignore
-function saveJSON(key, data) {
+/**
+ * @param {string} key
+ * @param {any} data
+ */
+async function saveJSON(key, data) {
+    // key = "characters" | "json"
     if (typeof localStorage === 'undefined') {
         console.error('localStorage is not available');
         return;
     }
     localStorage.setItem(key, JSON.stringify(data));
 
-    saveToDB(data, '/api/' + key + '/', 'POST');
+    const saved = await saveToDB('actions/' + key + '/', 'POST', data);
+    console.log(saved);
 }
 
 // @ts-ignore
-async function saveToDB(data, url, method) {
+async function saveToDB(url, method, data) {
     const response = await fetch(url, {
         method,
         headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         },
         body: JSON.stringify(data)
     });
 
     if (response.ok) {
-        /* success = true;
-        error = false; */
         return true;
     
-    } else {
-        /* success = false;
-        error = true;
-        errorMessage = response.statusText; */
-        return false;
     }
+
+    return false;
 }
 
 // @ts-ignore

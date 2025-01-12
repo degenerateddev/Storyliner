@@ -4,7 +4,7 @@ import uuid
 
 def upload_to(instance, filename):
     ext = filename.split('.')[-1]
-    return f'dialogues/{uuid.uuid4()}.{ext}'
+    return f'json/{uuid.uuid4()}.{ext}'
 
 class Character(models.Model):
     id = models.IntegerField(primary_key=True)
@@ -16,10 +16,10 @@ class Character(models.Model):
     def __str__(self):
         return self.name
 
-class Dialogue(models.Model):
+class JSON(models.Model):
     id = models.IntegerField(primary_key=True)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    json = models.FileField(upload_to=upload_to)
+    json = models.JSONField()
 
     def __str__(self):
         return str(self.id)

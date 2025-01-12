@@ -9,62 +9,6 @@
     // https://svelteflow.dev/examples/nodes/custom-node
     // https://svelteflow.dev/examples/layout/subflows
 
-    /* async function toggleSectionModal() {
-        const { value: formValues } = await Swal.fire({
-            title: "Add Section",
-            html: `
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold">Name</label>
-                    <input id="sName" name="name" class="swal2-input shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
-                </div>
-                <div class="mb-4">
-                    <label class="block text-gray-700 text-sm font-bold">Description</label>
-                    <textarea id="sDesc" name="description" class="swal2-textarea shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
-                </div>
-            `,
-            focusConfirm: false,
-            showCancelButton: true,
-            showCloseButton: true,
-            showLoaderOnConfirm: true,
-            showConfirmButton: true,
-            preConfirm: () => {
-                return {
-                    // @ts-ignore
-                    "name": document.getElementById("sName").value,
-                    // @ts-ignore
-                    "description": document.getElementById("sDesc").value
-                };
-            }
-        });
-
-        if (formValues) {
-            Swal.fire(JSON.stringify(formValues));
-
-            const name = formValues.name;
-            const description = formValues.description;
-
-            if (name) {
-                const randID = Math.floor(Math.random() * 10000);
-
-                sections.push({ id: randID, name, description, texts: [] });
-                sections = sections;
-
-                json.levels[currentLevel]["sections"] = sections;
-                levels = json.levels;
-                json = json;
-
-                saveJSON("json", json);
-
-                Swal.fire({
-                    title: "Section Added",
-                    icon: "success",
-                    showConfirmButton: false,
-                    timer: 1500
-                });
-            }
-        }
-    } */
-
     import Swal from "sweetalert2";
     import { Handle, Position } from "@xyflow/svelte";
     import { saveJSON } from "$lib/utils";

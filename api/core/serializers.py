@@ -1,11 +1,11 @@
 from rest_framework import serializers
-from .models import Character, Dialogue
+from .models import Character, JSON
 
-class DialogueSerializer(serializers.ModelSerializer):
+class JSONSerializer(serializers.ModelSerializer):
     json = serializers.SerializerMethodField()
     
     class Meta:
-        model = Dialogue
+        model = JSON
         fields = ("id", "json",)
     
     def get_json(self, obj):
