@@ -110,7 +110,7 @@
     }
 </script>
 
-<aside class="flex flex-col">
+<aside class="flex flex-col border border-black rounded-md py-1 px-3 bg-black/20">
     <h2 class="text-2xl font-semibold">Characters</h2>
     <div class="flex w-full rounded-md items-center">
         <!-- svelte-ignore a11y_consider_explicit_label -->

@@ -2,6 +2,10 @@ import { getContext } from "svelte";
 
 // @ts-ignore
 function exportJson(entry) {
+    if (typeof localStorage === 'undefined') {
+        console.error('localStorage is not available');
+        return;
+    }
     const data = localStorage.getItem(entry);
     const blob = new Blob([JSON.stringify(data, null, 4)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -14,6 +18,10 @@ function exportJson(entry) {
 
 // @ts-ignore
 function saveJSON(key, data) {
+    if (typeof localStorage === 'undefined') {
+        console.error('localStorage is not available');
+        return;
+    }
     localStorage.setItem(key, JSON.stringify(data));
 }
 
@@ -64,18 +72,12 @@ function useDnD() {
 };
 
 function getCharacters() {
-    const characters =  getContext('characters') || localStorage.getItem('characters');
+    if (typeof localStorage === 'undefined') {
+        console.error('localStorage is not available');
+        return null;
+    }
+    const characters = getContext('characters') || localStorage.getItem('characters');
     return characters;
 }
 
-function getLevelAndSection() {
-    const level_section = getContext("level_section") || {
-        level: localStorage.getItem("level"),
-        section: localStorage.getItem("section")
-    }
-    console.log(level_section);
-    
-    return { level: level_section.level, section: level_section.section };
-}
-
-export { exportJson, saveJSON, saveToDB, removeFromList, useDnD, getCharacters, getLevelAndSection };
+export { exportJson, saveJSON, saveToDB, removeFromList, useDnD, getCharacters };

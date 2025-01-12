@@ -14,13 +14,12 @@
     // https://svelteflow.dev/examples/interaction/computing-flows
     // https://svelteflow.dev/examples/interaction/drag-and-drop
     // https://svelteflow.dev/examples/nodes/custom-node
+    // https://svelteflow.dev/examples/layout/subflows
 
     export let data = $$props.data;
     let { id, content, label } = data;
 
-    let level_section = JSON.parse(localStorage.getItem('level_section'));
-    let currentLevel = level_section.level;
-    let currentSection = level_section.section;
+    let currentSection = 0;
 
     /**
 	 * @param {{ target: { value: string; }; }} event
@@ -34,9 +33,9 @@
         console.log(json)
         if (json) {
             // @ts-ignore
-            json.levels[currentLevel].sections[currentSection].texts.map((text, index) => {
-                if (text.meta.id === $id) {
-                    json.levels[currentLevel].sections[currentSection].texts[index].data.content = text;
+            json.sections[currentSection].texts.map((text, index) => {
+                if (text.meta.id === id) {
+                    json.sections[currentSection].texts[index].data.content = text;
                 }
             });
             // @ts-ignore
@@ -44,8 +43,71 @@
             console.log(json)
 
             localStorage.setItem('json', JSON.stringify(json));
+
+            Swal.fire({
+                title: "Saved",
+                icon: "success",
+                showConfirmButton: false,
+                timer: 500
+            });
         }
     }
+
+    /* async function toggleSectionModal() {
+        const { value: formValues } = await Swal.fire({
+            title: "Add Section",
+            html: `
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold">Name</label>
+                    <input id="sName" name="name" class="swal2-input shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" />
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 text-sm font-bold">Description</label>
+                    <textarea id="sDesc" name="description" class="swal2-textarea shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+                </div>
+            `,
+            focusConfirm: false,
+            showCancelButton: true,
+            showCloseButton: true,
+            showLoaderOnConfirm: true,
+            showConfirmButton: true,
+            preConfirm: () => {
+                return {
+                    // @ts-ignore
+                    "name": document.getElementById("sName").value,
+                    // @ts-ignore
+                    "description": document.getElementById("sDesc").value
+                };
+            }
+        });
+
+        if (formValues) {
+            Swal.fire(JSON.stringify(formValues));
+
+            const name = formValues.name;
+            const description = formValues.description;
+
+            if (name) {
+                const randID = Math.floor(Math.random() * 10000);
+
+                sections.push({ id: randID, name, description, texts: [] });
+                sections = sections;
+
+                json.levels[currentLevel]["sections"] = sections;
+                levels = json.levels;
+                json = json;
+
+                saveJSON("json", json);
+
+                Swal.fire({
+                    title: "Section Added",
+                    icon: "success",
+                    showConfirmButton: false,
+                    timer: 1500
+                });
+            }
+        }
+    } */
 </script>
 
 <div>

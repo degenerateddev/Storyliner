@@ -1,22 +1,30 @@
 <script>
-    // @ts-nocheck
-
     import { Background, BackgroundVariant, Controls, MiniMap, SvelteFlow, useSvelteFlow } from "@xyflow/svelte";
     import TextNode from "./TextNode.svelte";
-    import ColorPickerNode from "./ColorPickerNode.svelte";
     import { writable } from "svelte/store";
     import Sidebar from "./Sidebar.svelte";
-    import { useDnD, getLevelAndSection } from "$lib/utils";
-    import { getContext, onMount } from "svelte";
+    import { saveJSON, useDnD } from "$lib/utils";
+    import { onMount } from "svelte";
 	import Swal from "sweetalert2";
+	import SectionNode from "./SectionNode.svelte";
 
-    let level_section = JSON.parse(localStorage.getItem('level_section'));
-    let currentLevel = level_section.level;
-    let currentSection = level_section.section;
+    /* {
+        id: '2',
+        data: { label: 'Group A' },
+        position: { x: 100, y: 100 },
+        class: 'light',
+        style: 'background-color: rgba(255, 0, 0, 0.2); width: 200px; height: 200px;'
+    },
+    {
+        id: '2a',
+        data: { label: 'Node A.1' },
+        position: { x: 10, y: 50 },
+        parentId: '2'
+    }, */
 
     const nodeTypes = {
         'text': TextNode,
-        'color': ColorPickerNode
+        'section': SectionNode
     }
 
     const nodes = writable([]);
@@ -28,51 +36,65 @@
     onMount(() => {
         const getNodes = () => {
             let json = JSON.parse(localStorage.getItem('json'));
+            /**
+			 * @type {{ id: any; type: string; data: { id: any; label: string; content: any; } | { id: any; label: any; }; position: { x: number; y: number; } | { x: number; y: number; }; }[]}
+			 */
             let extractedNodeInformation = [];
 
-            json.levels.map((level, index) => {
-                if (level.id === currentLevel) {
-                    level.sections.map((section, index) => {
-                        if (section.id === currentSection) {
-                            section.texts.map((text, index) => {
-                                const position = text.meta.position.split(',');
-                                extractedNodeInformation.push({
-                                    id: text.meta.id,
-                                    type: 'text', // text.meta.type
-                                    data: { id: text.meta.id, label: "Text", content: text.data.content },
-                                    position: { x: parseFloat(position[0]), y: parseFloat(position[1]) }
-                                });
-                            });
-                        }
-                    });
+            if (!json) {
+                json = {
+                    sections: []
                 }
+                saveJSON("json", json);
+            }
+            console.log(json);
+
+            json.sections.map((/** @type {{ texts: any[]; meta: { id: any; }; label: any; }} */ section, /** @type {any} */ index) => {
+                section.texts.map((text, index) => {
+                    const position = text.meta.position.split(',');
+                    extractedNodeInformation.push({
+                        id: text.meta.id,
+                        type: 'text', // text.meta.type
+                        data: { id: text.meta.id, label: "Text", content: text.data.content },
+                        position: { x: parseFloat(position[0]), y: parseFloat(position[1]) }
+                    });
+                });
+                extractedNodeInformation.push({
+                    id: section.meta.id,
+                    type: 'section',
+                    data: { id: section.meta.id, label: section.label },
+                    position: { x: 100, y: 100 }
+                })
             });
+
+            console.log(extractedNodeInformation);
 
             return extractedNodeInformation;
         }
 
         const getEdges = () => {
             let json = JSON.parse(localStorage.getItem('json'));
+            /**
+			 * @type {{ id: string; type: string; source: any; target: any; label: string; }[]}
+			 */
             let extractedEdgeInformation = [];
 
-            json.levels.map((level, index) => {
-                if (level.id === currentLevel) {
-                    level.sections.map((section, index) => {
-                        if (section.id === currentSection) {
-                            section.texts.map((text, index) => {
-                                if (text.data.next !== null) {
-                                    extractedEdgeInformation.push({
-                                        id: `${text.meta.id}-${text.data.next}`,
-                                        type: 'default',
-                                        source: text.meta.id,
-                                        target: text.data.next,
-                                        label: 'Next'
-                                    });
-                                }
-                            })
-                        }
-                    })
-                }
+            if (json === null) {
+                return [];
+            }
+
+            json.sections.map((/** @type {{ texts: any[]; }} */ section, /** @type {any} */ index) => {
+                section.texts.map((text, index) => {
+                    if (text.data.next !== null) {
+                        extractedEdgeInformation.push({
+                            id: `${text.meta.id}-${text.data.next}`,
+                            type: 'default',
+                            source: text.meta.id,
+                            target: text.data.next,
+                            label: 'Next'
+                        });
+                    }
+                })
             });
 
             return extractedEdgeInformation;
@@ -99,33 +121,12 @@
         }
     };
 
-    function onDrop(event) {
+    function onDrop(event, selectedSection) {
         event.preventDefault();
+        console.log(selectedSection);
 
         let json = JSON.parse(localStorage.getItem('json'));
-        let canAdd = false;
-
-        // check if currentLevel and currentSection exist in json.levels
-        json.levels.filter((level, index) => {
-            if (level.id === currentLevel) {
-                level.sections.filter((section, index) => {
-                    if (section.id === currentSection) {
-                        canAdd = true;
-                    }
-                });
-            }
-        });
-
-        if (!canAdd) {
-            Swal.fire({
-                title: "Select a level and section first",
-                icon: "error",
-                showConfirmButton: false,
-                timer: 1000
-            });
-
-            return;
-        }
+        var groupId;
 
         const characterData = event.dataTransfer.getData("character");
         if (!characterData) {
@@ -138,39 +139,58 @@
             x: event.clientX,
             y: event.clientY
         });
+
+        // Check if there is a "group" node at the drop position
+        let groupNode = $nodes.find(node => node.type === 'section' && node.position.x === position.x && node.position.y === position.y);
+        console.log(groupNode);
+        if (!groupNode) {
+            groupId = `section-${$nodes.filter(node => node.type === 'section').length + 1}`;
+            groupNode = {
+                id: groupId,
+                type: 'section',
+                position,
+                style: 'background-color: rgba(255, 0, 0, 0.2); width: 500px; height: 500px;',
+                data: { id: groupId, label: `Section ${$nodes.filter(node => node.type === 'section').length + 1}` }
+            };
+            nodes.update(n => [...n, groupNode]);
+
+            json.sections.push({
+                meta: {
+                    id: groupId,
+                    position: `${position.x},${position.y}`,
+                    type: "section"
+                },
+                label: `Section ${$nodes.filter(node => node.type === 'section').length}`,
+                texts: []
+            });
+            selectedSection = json.sections.length - 1;
+        }
+
         const randID = Math.floor(Math.random() * 10000);
 
         const newNode = {
             id: randID.toString(),
             type: "text",
             position,
+            parentId: groupId,
             data: { id: randID.toString(), label: "Text", content: "" }
         };
 
-        json.levels.map((level, index) => {
-            console.log(level.id)
-            console.log(currentLevel)
-            if (level.id === currentLevel) {
-                json.levels[currentLevel].sections.map((section, index) => {
-                    console.log(section.id)
-                    console.log(currentSection)
-                    if (section.id === currentSection) {
-                        console.log("Adding text")
-                        json.levels[currentLevel].sections[currentSection].texts.push({
-                            meta: {
-                                id: randID.toString(),
-                                position: `${position.x},${position.y}`,
-                                type: "text"
-                            },
-                            data: {
-                                character: character.id,
-                                content: ""
-                            },
-                        });
-                    }
-                });
-            }
+        json.sections.map((/** @type {{ id: any; }} */ section, /** @type {any} */ index) => {
+            console.log("Adding text")
+            json.sections[selectedSection].texts.push({
+                meta: {
+                    id: randID.toString(),
+                    position: `${position.x},${position.y}`,
+                    type: "text"
+                },
+                data: {
+                    character: character.id,
+                    content: ""
+                },
+            });
         });
+
         json = json;
 
         nodes.update(n => [...n, newNode]);
