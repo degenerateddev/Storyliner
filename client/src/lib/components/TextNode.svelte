@@ -1,11 +1,4 @@
 <script>
-    // @ts-nocheck
-
-	import { getContext, onMount } from "svelte";
-	import { writable } from "svelte/store";
-	import Swal from "sweetalert2";
-    import { Handle, Position } from "@xyflow/svelte";
-
     // https://svelteflow.dev/examples/nodes/connection-limit
     // https://svelteflow.dev/examples/nodes/node-resizer
     // https://svelteflow.dev/examples/nodes/add-node-on-edge-drop
@@ -15,43 +8,6 @@
     // https://svelteflow.dev/examples/interaction/drag-and-drop
     // https://svelteflow.dev/examples/nodes/custom-node
     // https://svelteflow.dev/examples/layout/subflows
-
-    export let data = $$props.data;
-    let { id, content, label } = data;
-
-    let currentSection = 0;
-
-    /**
-	 * @param {{ target: { value: string; }; }} event
-	 */
-    function handleInput(event) {
-        let text = event.currentTarget.value;
-        content = text;
-
-        // @ts-ignore
-        let json = JSON.parse(localStorage.getItem('json'));
-        console.log(json)
-        if (json) {
-            // @ts-ignore
-            json.sections[currentSection].texts.map((text, index) => {
-                if (text.meta.id === id) {
-                    json.sections[currentSection].texts[index].data.content = text;
-                }
-            });
-            // @ts-ignore
-            json = json;
-            console.log(json)
-
-            localStorage.setItem('json', JSON.stringify(json));
-
-            Swal.fire({
-                title: "Saved",
-                icon: "success",
-                showConfirmButton: false,
-                timer: 500
-            });
-        }
-    }
 
     /* async function toggleSectionModal() {
         const { value: formValues } = await Swal.fire({
@@ -108,9 +64,56 @@
             }
         }
     } */
+
+    import Swal from "sweetalert2";
+    import { Handle, Position } from "@xyflow/svelte";
+    import { saveJSON } from "$lib/utils";
+
+    export let data = $$props.data;
+    let { id, content, label } = data;
+
+    let currentSection = 0;
+    let timeout;
+
+    /**
+     * @param {{ target: { value: string; }; }} event
+     */
+    function handleInput(event) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+            let text = event.target.value;
+            content = text;
+
+            // @ts-ignore
+            let json = JSON.parse(localStorage.getItem('json'));
+            console.log(json)
+            if (json) {
+                // @ts-ignore
+                json.sections[currentSection].texts.map((text, index) => {
+                    if (text.meta.id === id) {
+                        json.sections[currentSection].texts[index].data.content = content;
+                    }
+                });
+                // @ts-ignore
+                json = json;
+                console.log(json)
+
+                saveJSON("json", json);
+
+                console.log(json);
+
+                Swal.fire({
+                    title: "Saved",
+                    icon: "success",
+                    showConfirmButton: false,
+                    timer: 1000
+                });
+            }
+        }, 1000); // Adjusted to 1 second
+    }
 </script>
 
-<div>
+<div class="border border-black rounded-md bg-black/10 p-3">
     <p>{data.label}</p>
     <textarea class="nodrag" type="text" value={content} on:input={(event) => {
         handleInput(event);

@@ -5,7 +5,6 @@
     import Sidebar from "./Sidebar.svelte";
     import { saveJSON, useDnD } from "$lib/utils";
     import { onMount } from "svelte";
-	import Swal from "sweetalert2";
 	import SectionNode from "./SectionNode.svelte";
 
     /* {
@@ -50,21 +49,25 @@
             console.log(json);
 
             json.sections.map((/** @type {{ texts: any[]; meta: { id: any; }; label: any; }} */ section, /** @type {any} */ index) => {
-                section.texts.map((text, index) => {
-                    const position = text.meta.position.split(',');
-                    extractedNodeInformation.push({
-                        id: text.meta.id,
-                        type: 'text', // text.meta.type
-                        data: { id: text.meta.id, label: "Text", content: text.data.content },
-                        position: { x: parseFloat(position[0]), y: parseFloat(position[1]) }
-                    });
-                });
+                // adding section node
                 extractedNodeInformation.push({
                     id: section.meta.id,
                     type: 'section',
                     data: { id: section.meta.id, label: section.label },
                     position: { x: 100, y: 100 }
                 })
+                
+                section.texts.map((text, index) => {
+                    // adding text nodes
+                    const position = text.meta.position.split(',');
+                    extractedNodeInformation.push({
+                        id: text.meta.id,
+                        type: 'text', // text.meta.type
+                        data: { id: text.meta.id, label: "Text", content: text.data.content },
+                        position: { x: parseFloat(position[0]), y: parseFloat(position[1]) },
+                        parentId: text.meta.parentId
+                    });
+                });
             });
 
             console.log(extractedNodeInformation);
@@ -85,7 +88,7 @@
 
             json.sections.map((/** @type {{ texts: any[]; }} */ section, /** @type {any} */ index) => {
                 section.texts.map((text, index) => {
-                    if (text.data.next !== null) {
+                    if (text.data.next) {
                         extractedEdgeInformation.push({
                             id: `${text.meta.id}-${text.data.next}`,
                             type: 'default',
@@ -121,9 +124,8 @@
         }
     };
 
-    function onDrop(event, selectedSection) {
+    function onDrop(event) {
         event.preventDefault();
-        console.log(selectedSection);
 
         let json = JSON.parse(localStorage.getItem('json'));
         var groupId;
@@ -140,16 +142,20 @@
             y: event.clientY
         });
 
-        // Check if there is a "group" node at the drop position
-        let groupNode = $nodes.find(node => node.type === 'section' && node.position.x === position.x && node.position.y === position.y);
+        let selectedSection = null;
+        let groupNodes = $nodes.find(node => node.type === 'section');
+        console.log("Checking if text has been placed into group node!");
+        console.log(groupNodes);
+        // Check if there is a "group" node at the drop position (group nodes have a size of 500x500)
+        let groupNode = $nodes.find(node => node.type === 'section' && position.x >= node.position.x && position.x <= node.position.x + 500 && position.y >= node.position.y && position.y <= node.position.y + 500); 
         console.log(groupNode);
+
         if (!groupNode) {
-            groupId = `section-${$nodes.filter(node => node.type === 'section').length + 1}`;
+            groupId = `section-${Math.floor(Math.random() * 10000)}`;
             groupNode = {
                 id: groupId,
                 type: 'section',
                 position,
-                style: 'background-color: rgba(255, 0, 0, 0.2); width: 500px; height: 500px;',
                 data: { id: groupId, label: `Section ${$nodes.filter(node => node.type === 'section').length + 1}` }
             };
             nodes.update(n => [...n, groupNode]);
@@ -163,10 +169,17 @@
                 label: `Section ${$nodes.filter(node => node.type === 'section').length}`,
                 texts: []
             });
-            selectedSection = json.sections.length - 1;
+            selectedSection = groupId;
+        } else {
+            groupId = groupNode.id;
+            selectedSection = groupId;
         }
 
         const randID = Math.floor(Math.random() * 10000);
+
+        // recalculate position relative to group node
+        position.x -= groupNode.position.x;
+        position.y -= groupNode.position.y;
 
         const newNode = {
             id: randID.toString(),
@@ -175,14 +188,22 @@
             parentId: groupId,
             data: { id: randID.toString(), label: "Text", content: "" }
         };
+        console.log(newNode);
 
         json.sections.map((/** @type {{ id: any; }} */ section, /** @type {any} */ index) => {
             console.log("Adding text")
-            json.sections[selectedSection].texts.push({
+            let findSection = section.meta.id === selectedSection;
+
+            if (!findSection) {
+                return;
+            }
+
+            section.texts.push({
                 meta: {
                     id: randID.toString(),
                     position: `${position.x},${position.y}`,
-                    type: "text"
+                    type: "text",
+                    parentId: groupId
                 },
                 data: {
                     character: character.id,
@@ -194,7 +215,9 @@
         json = json;
 
         nodes.update(n => [...n, newNode]);
-        localStorage.setItem('json', JSON.stringify(json));
+        saveJSON("json", json);
+
+        console.log(json);
     }
 </script>
 
@@ -208,6 +231,7 @@
         on:nodeclick={onNodeClick}
         on:dragover={onDragOver}
         on:drop={onDrop}
+        on:drag={onNodeDrag}
     >
         <Controls />
         <Background variant={BackgroundVariant.Dots} />
