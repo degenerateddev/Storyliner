@@ -70,7 +70,9 @@
     import { saveJSON } from "$lib/utils";
 
     export let data = $$props.data;
-    let { id, content, label } = data;
+    export let selected = $$props.selected;
+
+    let { id, content, character } = data;
 
     let currentSection = 0;
     let timeout;
@@ -113,9 +115,11 @@
     }
 </script>
 
-<div class="border border-black rounded-md bg-black/10 p-3">
-    <p>{data.label}</p>
-    <textarea class="nodrag" type="text" value={content} on:input={(event) => {
+<div class="rounded-md p-3 bg-black/10 border {selected ? 'border-red-500' : 'border-black'}">
+    <p>
+        <span class="font-semibold font-mono uppercase">Text</span>
+    </p>
+    <textarea rows="5" type="text" value={content} on:input={(event) => {
         handleInput(event);
     }}></textarea>
     <Handle type="target" position={Position.Left} style="background: #555;" isConnectable={true} />

@@ -6,6 +6,7 @@
     import { saveJSON, useDnD } from "$lib/utils";
     import { onMount } from "svelte";
 	import SectionNode from "./SectionNode.svelte";
+	import Swal from "sweetalert2";
 
     /* {
         id: '2',
@@ -30,6 +31,7 @@
     const edges = writable([]);
     const snapGrid = [25, 25];
     const type = useDnD();
+    const sectionNodeStyle = 'background-color: rgba(255, 0, 0, 0.2); width: 800px; height: 800px; box-shadow: 4px 4px 0px 0px black; border: 1px solid black;';
     const { screenToFlowPosition } = useSvelteFlow();
 
     onMount(() => {
@@ -54,7 +56,8 @@
                     id: section.meta.id,
                     type: 'section',
                     data: { id: section.meta.id, label: section.label },
-                    position: { x: 100, y: 100 }
+                    position: { x: 100, y: 100 },
+                    style: sectionNodeStyle
                 })
                 
                 section.texts.map((text, index) => {
@@ -62,8 +65,8 @@
                     const position = text.meta.position.split(',');
                     extractedNodeInformation.push({
                         id: text.meta.id,
-                        type: 'text', // text.meta.type
-                        data: { id: text.meta.id, label: "Text", content: text.data.content },
+                        type: 'text',
+                        data: { id: text.meta.id, character: text.data.character, content: text.data.content },
                         position: { x: parseFloat(position[0]), y: parseFloat(position[1]) },
                         parentId: text.meta.parentId
                     });
@@ -113,6 +116,7 @@
     }
 
     function onNodeClick({ detail: { node } }) {
+        // make remove button appear right above the node
         console.log('on node click', node);
     }
 
@@ -156,7 +160,8 @@
                 id: groupId,
                 type: 'section',
                 position,
-                data: { id: groupId, label: `Section ${$nodes.filter(node => node.type === 'section').length + 1}` }
+                data: { id: groupId, label: `Section ${$nodes.filter(node => node.type === 'section').length + 1}` },
+                style: sectionNodeStyle
             };
             nodes.update(n => [...n, groupNode]);
 
@@ -186,7 +191,7 @@
             type: "text",
             position,
             parentId: groupId,
-            data: { id: randID.toString(), label: "Text", content: "" }
+            data: { id: randID.toString(), character: character.id, content: "" }
         };
         console.log(newNode);
 
@@ -219,6 +224,145 @@
 
         console.log(json);
     }
+
+    function handleConnectEnd(event, connectionState) {
+        if (connectionState.isValid) return;
+
+        let json = JSON.parse(localStorage.getItem('json'));
+    
+        const sourceNodeId = connectionState.fromNode?.id ?? '1';
+        const id = `${Math.floor(Math.random() * 10000)}`;
+        const { clientX, clientY } = 'changedTouches' in event ? event.changedTouches[0] : event;
+        
+        const position = screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY
+        });
+
+        // Check if there is a "group" node at the drop position (group nodes have a size of 500x500)
+        let groupId;
+        let groupNode = $nodes.find(node => node.type === 'section' && position.x >= node.position.x && position.x <= node.position.x + 500 && position.y >= node.position.y && position.y <= node.position.y + 500); 
+        console.log(groupNode);
+        
+        if (!groupNode) {
+            groupId = `section-${Math.floor(Math.random() * 10000)}`;
+            groupNode = {
+                id: groupId,
+                type: 'section',
+                position,
+                data: { id: groupId, label: `Section ${$nodes.filter(node => node.type === 'section').length + 1}` },
+                style: sectionNodeStyle
+            };
+            nodes.update(n => [...n, groupNode]);
+
+            json.sections.push({
+                meta: {
+                    id: groupId,
+                    position: `${position.x},${position.y}`,
+                    type: "section"
+                },
+                label: `Section ${$nodes.filter(node => node.type === 'section').length}`,
+                texts: []
+            });
+        } else {
+            groupId = groupNode.id;
+
+            json.sections.map((/** @type {{ id: any; }} */ section, /** @type {any} */ index) => {
+                let findSection = section.meta.id === groupId;
+
+                if (!findSection) {
+                    return;
+                }
+            });
+        }
+
+        // add new text node
+        const newNode = {
+            id,
+            type: "text",
+            data: { id, character: connectionState.fromNode.data.character, content: "" },
+            position: screenToFlowPosition({
+                x: clientX,
+                y: clientY
+            }),
+            parentId: groupId,
+            // set the origin of the new node so it is centered
+            origin: [0.5, 0.0]
+        }
+
+        json.sections.map((/** @type {{ id: any; }} */ section, /** @type {any} */ index) => {
+            let findSection = section.meta.id === groupId;
+
+            if (!findSection) {
+                return;
+            }
+
+            // get edge source node and add edge target node id to data.next property
+            //const sourceNode = $nodes.find(node => node.id === sourceNodeId);
+            const sourceNode = connectionState.fromNode;
+            console.log(sourceNode);
+
+            section.texts.push({
+                meta: {
+                    id,
+                    position: `${position.x},${position.y}`,
+                    type: "text",
+                    parentId: groupId
+                },
+                data: {
+                    character: sourceNode.data.character,
+                    content: ""
+                },
+            });
+
+            section.texts.map((text, index) => {
+                if (text.meta.id === sourceNodeId) {
+                    json.sections[index].texts[index].data.next = id;
+                }
+            });
+        });
+
+        json = json;
+
+        nodes.update(n => [...n, newNode]);
+        // @ts-ignore
+        edges.update(e => [...e, {
+            source: sourceNodeId,
+            target: id,
+            id: `${sourceNodeId}--${id}`
+        }]);
+
+        saveJSON("json", json);
+
+        console.log(json);
+    };
+
+    function handleDelete(event) {
+        console.log('delete', event);
+
+        let json = JSON.parse(localStorage.getItem('json'));
+
+        event.nodes.forEach(node => {
+            if (node.type === 'section') {
+                json.sections = json.sections.filter(section => section.meta.id !== node.id);
+            } else {
+                json.sections.map((section, index) => {
+                    section.texts = section.texts.filter(text => text.meta.id !== node.id);
+                });
+            }
+        });
+        
+        json = json;
+
+        saveJSON("json", json);
+
+        Swal.fire({
+            title: "Deleted",
+            icon: "success",
+            showConfirmButton: false,
+            timer: 1000
+        });
+    }
 </script>
 
 <main class="min-h-[100vh] h-full flex flex-col-reverse">
@@ -232,6 +376,8 @@
         on:dragover={onDragOver}
         on:drop={onDrop}
         on:drag={onNodeDrag}
+        ondelete={handleDelete}
+        onconnectend={handleConnectEnd}
     >
         <Controls />
         <Background variant={BackgroundVariant.Dots} />

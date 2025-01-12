@@ -23,6 +23,8 @@ function saveJSON(key, data) {
         return;
     }
     localStorage.setItem(key, JSON.stringify(data));
+
+    saveToDB(data, '/api/' + key + '/', 'POST');
 }
 
 // @ts-ignore
