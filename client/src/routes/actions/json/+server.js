@@ -7,7 +7,9 @@ export const POST = async ({ request, cookies }) => {
 
 	const response = await fetch(PUBLIC_API + "/json/", {
 		method: 'POST',
-		body: data,
+		body: JSON.stringify({
+            "json": data
+        }),
 		headers: {
 			'Content-Type': 'application/json',
 			'Authorization': 'Bearer ' + token

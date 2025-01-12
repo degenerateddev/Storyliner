@@ -2,20 +2,21 @@ from rest_framework import serializers
 from .models import Character, JSON
 
 class JSONSerializer(serializers.ModelSerializer):
-    json = serializers.SerializerMethodField()
+    id = serializers.IntegerField(read_only=True)
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    json = serializers.JSONField()
     
     class Meta:
         model = JSON
-        fields = ("id", "json",)
-    
-    def get_json(self, obj):
-        if obj.json:
-            with obj.json.open('r') as file:
-                return file.read()
-            
-        return None
+        fields = '__all__'
 
 class CharacterSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(read_only=True)
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    name = serializers.CharField()
+    avatar = serializers.ImageField()
+    meta = serializers.JSONField()
+
     class Meta:
         model = Character
         fields = '__all__'

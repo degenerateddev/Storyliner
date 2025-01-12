@@ -18,7 +18,7 @@ class Character(models.Model):
 
 class JSON(models.Model):
     id = models.IntegerField(primary_key=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     json = models.JSONField()
 
     def __str__(self):
