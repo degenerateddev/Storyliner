@@ -12,13 +12,21 @@
 
     // @ts-ignore
     export let data;
+    console.log(data);
 
     // @ts-ignore
-    var json = data.json || (typeof window !== 'undefined' && JSON.parse(localStorage.getItem("json"))) || {};
+    var json = data.json.length > 0 ? data.json[0].json : (typeof window !== 'undefined' && JSON.parse(localStorage.getItem("json"))) || [];
+    if (json) {
+        saveJSON("json", json);
+    }
 
     onMount(() => {
         // @ts-ignore
-        setContext('characters', localStorage.getItem('characters') ? JSON.parse(localStorage.getItem('characters')) : []);
+        const characters = data.characters.length > 0 ? data.characters : (typeof window !== 'undefined' && JSON.parse(localStorage.getItem("characters"))) || [];
+        if (characters) {
+            saveJSON("characters", characters);
+            setContext('characters', characters);
+        }
     });
 </script>
 

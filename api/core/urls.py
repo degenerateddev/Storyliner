@@ -5,7 +5,8 @@ from .views import CharacterViewSet, JSONViewSet
 
 router = DefaultRouter()
 router.register(r'json', JSONViewSet)
-router.register(r'characters', CharacterViewSet)
+router.register(r'characters', CharacterViewSet, basename='characters')
+router.register(r'character', CharacterViewSet, basename='character')
 
 urlpatterns = [
     path('', include(router.urls)),

@@ -21,7 +21,7 @@ function exportJson(entry) {
  * @param {string} key
  * @param {any} data
  */
-async function saveJSON(key, data) {
+async function saveJSON(key, data, adding=true) {
     // key = "characters" | "json"
     if (typeof localStorage === 'undefined') {
         console.error('localStorage is not available');
@@ -29,8 +29,10 @@ async function saveJSON(key, data) {
     }
     localStorage.setItem(key, JSON.stringify(data));
 
-    const saved = await saveToDB('actions/' + key + '/', 'POST', data);
-    console.log(saved);
+    if (adding) {
+        const saved = await saveToDB('actions/' + key + '/', 'POST', data);
+        return saved;
+    }
 }
 
 // @ts-ignore

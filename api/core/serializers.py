@@ -11,11 +11,10 @@ class JSONSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class CharacterSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField(read_only=True)
+    _id = serializers.IntegerField()
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     name = serializers.CharField()
-    avatar = serializers.ImageField()
-    meta = serializers.JSONField()
+    meta = serializers.JSONField(required=False)
 
     class Meta:
         model = Character

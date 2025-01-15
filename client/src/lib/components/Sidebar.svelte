@@ -1,5 +1,5 @@
 <script>
-	import { exportJson, getCharacters, removeFromList, saveJSON, useDnD } from "$lib/utils";
+	import { exportJson, getCharacters, removeFromList, saveJSON, saveToDB, useDnD } from "$lib/utils";
 	import Swal from "sweetalert2";
 
     var characters = getCharacters();
@@ -32,11 +32,13 @@
         });
 
         if (formValues) {
+            const characterId = element.id;
             const newList = removeFromList(list, element)
 
             if (newList) {
                 $characters = newList;
-                saveJSON("characters", $characters);
+                saveJSON("characters", $characters, false);
+                const removed = await saveToDB('actions/characters/', 'DELETE', { id: characterId });
 
                 Swal.fire({
                     title: "Removed",
@@ -59,11 +61,6 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-gray-700 text-sm font-bold">Avatar</label>
-                        <input id="cAvatar" class="swal2-file shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" id="avatar" type="file" accept="image/*">
-                    </div>
-
-                    <div class="mb-4">
                         <label class="block text-gray-700 text-sm font-bold">Meta</label>
                         <textarea id="cMeta" name="meta" class="swal2-textarea shadow appearance-none border rounded py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
                     </div>
@@ -79,8 +76,6 @@
                     // @ts-ignore
                     "name": document.getElementById("cName").value,
                     // @ts-ignore
-                    "avatar": document.getElementById("cAvatar").value,
-                    // @ts-ignore
                     "meta": document.getElementById("cMeta").value
                 };
             }
@@ -88,13 +83,12 @@
 
         if (formValues) {
             const name = formValues.name;
-            const avatar = formValues.avatar;
             const meta = formValues.meta;
 
             if (name) {
                 const randID = Math.floor(Math.random() * 10000);
                 
-                $characters.push({ id: randID, name, avatar, meta });
+                $characters.push({ id: randID, name, meta });
                 console.log($characters)
                 characters.set($characters);
                 saveJSON("characters", $characters);

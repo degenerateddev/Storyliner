@@ -44,6 +44,31 @@ class CharacterViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
     
+    def create(self, request, *args, **kwargs):
+        logging.debug(f"Request data: {request.data}")
+        
+        try:
+            id = request.POST.get("id")
+            instance = Character.objects.get(_id=id, user=request.user)
+            serializer = self.get_serializer(instance, data=request.data)
+        except Character.DoesNotExist:
+            serializer = self.get_serializer(data=request.data)
+
+        if serializer.is_valid():
+            self.perform_create(serializer)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            print(kwargs)
+            instance = self.queryset.get(_id=kwargs['pk'], user=request.user)
+            self.perform_destroy(instance)
+        except:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+    
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 

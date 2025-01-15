@@ -1,16 +1,38 @@
 import { PUBLIC_API } from "$env/static/public";
 
 export const load = async (event) => {
-    const response = await fetch(PUBLIC_API + "/");
+    const cookies = event.cookies;
 
-    if (response.ok) {
-        const data = await response.json();
-
-        return {
-            characters: data.characters,
-            json: data.json
+    const responseJSON = await fetch(PUBLIC_API + "/json/", {
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + cookies.get("access")
         }
+    });
+    const responseCharacters = await fetch(PUBLIC_API + "/characters/", {
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + cookies.get("access")
+        }
+    });
+
+    let data = {
+        json: {},
+        characters: {}
+    };
+
+    if (responseJSON.ok) {
+        data.json = await responseJSON.json();
     }
 
-    return {}
+    if (responseCharacters.ok) {
+        data.characters = await responseCharacters.json();
+    }
+
+    console.log(data);
+    if (data.json && data.characters) {
+        return data;
+    }
+
+    return { status: 404 };
 }
