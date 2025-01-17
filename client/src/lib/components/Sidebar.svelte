@@ -89,7 +89,7 @@
                 const randID = Math.floor(Math.random() * 10000);
                 
                 $characters.push({ id: randID, name, meta });
-                console.log($characters)
+                
                 characters.set($characters);
                 saveJSON("characters", $characters);
 

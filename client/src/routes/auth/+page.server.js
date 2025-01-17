@@ -77,7 +77,6 @@ export const actions = {
 
         if (response.ok) {
             const tokens = await response.json();
-            console.log(tokens)
 
             event.cookies.set('access', tokens.access, {
                 path: '/',

@@ -29,7 +29,6 @@ export const load = async (event) => {
         data.characters = await responseCharacters.json();
     }
 
-    console.log(data);
     if (data.json && data.characters) {
         return data;
     }

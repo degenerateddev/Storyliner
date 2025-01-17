@@ -42,14 +42,14 @@
 			 */
             let extractedNodeInformation = [];
 
-            if (!json) {
+            if ((!json) || (json.sections === undefined)) {
                 json = {
                     sections: []
                 }
                 saveJSON("json", json);
             }
-            console.log(json);
-
+            
+            json.sections = json.sections || [];
             json.sections.map((/** @type {{ texts: any[]; meta: { id: any; }; label: any; }} */ section, /** @type {any} */ index) => {
                 // adding section node
                 extractedNodeInformation.push({
@@ -73,8 +73,6 @@
                 });
             });
 
-            console.log(extractedNodeInformation);
-
             return extractedNodeInformation;
         }
 
@@ -89,6 +87,7 @@
                 return [];
             }
 
+            json.sections = json.sections || [];
             json.sections.map((/** @type {{ texts: any[]; }} */ section, /** @type {any} */ index) => {
                 section.texts.map((text, index) => {
                     if (text.data.next) {
@@ -107,17 +106,13 @@
         }
         nodes.set(getNodes());
         edges.set(getEdges());
-        console.log($nodes);
-        console.log($edges);
     })
 
     function onNodeDrag({ detail: { targetNode } }) {
-        console.log('on node drag', targetNode);
     }
 
     function onNodeClick({ detail: { node } }) {
         // make remove button appear right above the node
-        console.log('on node click', node);
     }
 
     function onDragOver(event) {
@@ -132,6 +127,9 @@
         event.preventDefault();
 
         let json = JSON.parse(localStorage.getItem('json'));
+        /**
+		 * @type {string}
+		 */
         var groupId;
 
         const characterData = event.dataTransfer.getData("character");
@@ -148,11 +146,9 @@
 
         let selectedSection = null;
         let groupNodes = $nodes.find(node => node.type === 'section');
-        console.log("Checking if text has been placed into group node!");
-        console.log(groupNodes);
+
         // Check if there is a "group" node at the drop position (group nodes have a size of 800x800)
         let groupNode = $nodes.find(node => node.type === 'section' && position.x >= node.position.x && position.x <= node.position.x + 800 && position.y >= node.position.y && position.y <= node.position.y + 800); 
-        console.log(groupNode);
 
         if (!groupNode) {
             groupId = `section-${Math.floor(Math.random() * 10000)}`;
@@ -163,8 +159,10 @@
                 data: { id: groupId, label: `Section ${$nodes.filter(node => node.type === 'section').length + 1}` },
                 style: sectionNodeStyle
             };
+            // @ts-ignore
             nodes.update(n => [...n, groupNode]);
 
+            json.sections = json.sections || [];
             json.sections.push({
                 meta: {
                     id: groupId,
@@ -193,16 +191,17 @@
             parentId: groupId,
             data: { id: randID.toString(), character: character.id, content: "" }
         };
-        console.log(newNode);
 
+        json.sections = json.sections || [];
         json.sections.map((/** @type {{ id: any; }} */ section, /** @type {any} */ index) => {
-            console.log("Adding text")
+            // @ts-ignore
             let findSection = section.meta.id === selectedSection;
 
             if (!findSection) {
                 return;
             }
 
+            // @ts-ignore
             section.texts.push({
                 meta: {
                     id: randID.toString(),
@@ -221,19 +220,17 @@
 
         nodes.update(n => [...n, newNode]);
         saveJSON("json", json);
-
-        console.log(json);
     }
 
     function handleConnectEnd(event, connectionState) {
         if (connectionState.isValid) return;
 
         let json = JSON.parse(localStorage.getItem('json'));
-    
+
         const sourceNodeId = connectionState.fromNode?.id ?? '1';
         const id = `${Math.floor(Math.random() * 10000)}`;
         const { clientX, clientY } = 'changedTouches' in event ? event.changedTouches[0] : event;
-        
+
         const position = screenToFlowPosition({
             x: event.clientX,
             y: event.clientY
@@ -242,8 +239,7 @@
         // Check if there is a "group" node at the drop position (group nodes have a size of 800x800)
         let groupId;
         let groupNode = $nodes.find(node => node.type === 'section' && position.x >= node.position.x && position.x <= node.position.x + 800 && position.y >= node.position.y && position.y <= node.position.y + 800); 
-        console.log(groupNode);
-        
+
         if (!groupNode) {
             groupId = `section-${Math.floor(Math.random() * 10000)}`;
             groupNode = {
@@ -255,6 +251,7 @@
             };
             nodes.update(n => [...n, groupNode]);
 
+            json.sections = json.sections || [];
             json.sections.push({
                 meta: {
                     id: groupId,
@@ -266,14 +263,6 @@
             });
         } else {
             groupId = groupNode.id;
-
-            json.sections.map((/** @type {{ id: any; }} */ section, /** @type {any} */ index) => {
-                let findSection = section.meta.id === groupId;
-
-                if (!findSection) {
-                    return;
-                }
-            });
         }
 
         // add new text node
@@ -290,7 +279,7 @@
             origin: [0.5, 0.0]
         }
 
-        json.sections.map((/** @type {{ id: any; }} */ section, /** @type {any} */ index) => {
+        json.sections.map((section, index) => {
             let findSection = section.meta.id === groupId;
 
             if (!findSection) {
@@ -298,9 +287,7 @@
             }
 
             // get edge source node and add edge target node id to data.next property
-            //const sourceNode = $nodes.find(node => node.id === sourceNodeId);
             const sourceNode = connectionState.fromNode;
-            console.log(sourceNode);
 
             section.texts.push({
                 meta: {
@@ -315,10 +302,12 @@
                 },
             });
 
-            section.texts.map((text, index) => {
-                if (text.meta.id === sourceNodeId) {
-                    json.sections[index].texts[index].data.next = id;
-                }
+            json.sections.forEach((sec, secIndex) => {
+                sec.texts.forEach((text, textIndex) => {
+                    if (text.meta.id === sourceNodeId) {
+                        json.sections[secIndex].texts[textIndex].data.next = id;
+                    }
+                });
             });
         });
 
@@ -333,19 +322,19 @@
         }]);
 
         saveJSON("json", json);
-
-        console.log(json);
     };
 
     function handleDelete(event) {
-        console.log('delete', event);
-
         let json = JSON.parse(localStorage.getItem('json'));
 
         event.nodes.forEach(node => {
+            json.sections = json.sections || [];
+
             if (node.type === 'section') {
+
                 json.sections = json.sections.filter(section => section.meta.id !== node.id);
             } else {
+
                 json.sections.map((section, index) => {
                     section.texts = section.texts.filter(text => text.meta.id !== node.id);
                 });

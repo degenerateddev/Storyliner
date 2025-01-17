@@ -15,10 +15,12 @@
 
     export let data = $$props.data;
     export let selected = $$props.selected;
+    export let parentId = $$props.parentId;
 
     let { id, content, character } = data;
-
-    let currentSection = 0;
+    /**
+	 * @type {number | undefined}
+	 */
     let timeout;
 
     /**
@@ -26,27 +28,26 @@
      */
     function handleInput(event) {
         clearTimeout(timeout);
+
         timeout = setTimeout(() => {
             let text = event.target.value;
             content = text;
 
             // @ts-ignore
             let json = JSON.parse(localStorage.getItem('json'));
-            console.log(json)
             if (json) {
                 // @ts-ignore
-                json.sections[currentSection].texts.map((text, index) => {
+
+                json.sections = json.sections || [];
+                json.sections.find((/** @type {{ id: any; }} */ section) => section.meta.id === parentId).texts.map((text, index) => {
                     if (text.meta.id === id) {
-                        json.sections[currentSection].texts[index].data.content = content;
+                        json.sections.find((/** @type {{ id: any; }} */ section) => section.meta.id === parentId).texts[index].data.content = content;
                     }
                 });
                 // @ts-ignore
                 json = json;
-                console.log(json)
 
                 saveJSON("json", json);
-
-                console.log(json);
 
                 Swal.fire({
                     title: "Saved",

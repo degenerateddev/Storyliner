@@ -49,8 +49,13 @@ class CharacterViewSet(viewsets.ModelViewSet):
         
         try:
             id = request.POST.get("id")
-            instance = Character.objects.get(_id=id, user=request.user)
-            serializer = self.get_serializer(instance, data=request.data)
+            
+            if (id != None):
+                instance = Character.objects.get(_id=id, user=request.user)
+                serializer = self.get_serializer(instance, data=request.data)
+            else:
+                raise Character.DoesNotExist
+            
         except Character.DoesNotExist:
             serializer = self.get_serializer(data=request.data)
 
@@ -62,7 +67,6 @@ class CharacterViewSet(viewsets.ModelViewSet):
 
     def destroy(self, request, *args, **kwargs):
         try:
-            print(kwargs)
             instance = self.queryset.get(_id=kwargs['pk'], user=request.user)
             self.perform_destroy(instance)
         except:

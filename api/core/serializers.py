@@ -18,4 +18,4 @@ class CharacterSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Character
-        fields = '__all__'
+        fields = ("_id", "user", "name", "meta")
