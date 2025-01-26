@@ -3,104 +3,78 @@
 ## Data Structure for use in Game Engines (JSON)
 ```
 {
-    "level_1": {
-        "name": "First Level",
-        "description": "Short level description",
-        "sections": [
-            {
-                "name": "First Section",
-                "description": "Short section description",
-                "texts": [
-                    {
-                        "meta": {
-                            "custom_key": "Custom data"
-                        },
-                        "type": "dialogue",
-                        "steps": [
-                            {
-                                "s_1": {
-                                    "character": "characterId",
-                                    "text": "Short dialogue opening line"
-                                }
-                            },
-                            {
-                                "s_2": {
-                                    "character": "characterId",
-                                    "text": "Short dialogue opening line"
-                                }
-                            },
-                        ]
+    "name": "First Level",
+    "description": "Short level description",
+    "sections": [
+        {
+            "meta": {
+                "id": "S0",
+                "position": "0,0",
+                "type": "section",
+
+                "custom_key": "Custom data"
+            },
+            "label": "First Section",
+            "texts": [
+                {
+                    "meta": {
+                        "id": "0",
+                        "position": "0,0",
+                        "type": "text",
+                        "parentId": "S0",
+
+                        "custom_key": "Custom data"
                     },
-                    {
-                        "type": "jabber"
+                    "data": {
                         "character": "characterId",
-                        "text": "Short jabber"
-                    }
-                ]
-            }
-        ]
-    }
-}
-```
-
-## JavaScript Object:
-```
-const data = {
-    level_1: {
-        name: levelName,
-        description: levelDescription,
-        sections: [
-            {
-                name: "First Section",
-                description: "Short section description",
-                texts: [
-                    {
-                        meta: {
-                            custom_key: "Custom data"
-                        },
-                        "type": "dialogue"
-                        steps: [
+                        "content": "Are you free tomorrow?",
+                        "next": ["1"]
+                        /* "next": [
                             {
-                                s_1: {
-                                    character: "characterId",
-                                    text: "Short dialogue opening line"
-                                }
+                                "id": "1",
+                                "condition": "playerChoice == 'No'"
                             },
                             {
-                                s_2: {
-                                    character: "characterId",
-                                    text: "Short dialogue opening line"
-                                }
+                                "id": "2",
+                                "condition": "playerChoice == 'Yes'"
                             }
-                        ]
-                    },
-                    {
-                        "type": "jabber",
-                        character: "characterId",
-                        text: "Short jabber"
+                        ] */
                     }
-                ]
-            }
-        ]
-    }
-};
-```
+                },
+                {
+                    "meta": {
+                        "id": "1",
+                        "position": "10,0",
+                        "type": "text",
+                        "parentId": "S0",
 
-## Python dictionary:
-```
-
+                        "custom_key": "Custom data"
+                    },
+                    "data": {
+                        "character": "characterId",
+                        "content": "Oh, okay."
+                    }
+                }
+            ]
+        }
+    ]
+}
 ```
 
 ### Main difference between dialogue and jabbering are:
 - dialogue is for more complex text and dialogue trees, they run in a certain order. e.g. Dialogue going back and forth between the PMC and an important story character
 - jabbering is for simple text, only linear dialogue and always looping (e.g. Random NPCs with no story relevance)
 
-Base System for complex dialogue consisting of step based dialogue!
+### Base System for complex dialogue consisting of step based dialogue!
+- "Level" as top level
+- "Section" as medium level node
+- "Text" as bottom level node
 
-"Level" as Top Level
-Section as Sub Level
-Add Characters into sections in the order of the stories' flow (one character can have multiple texts he works through during a section entry and one character can appear multiple times during a section with different text configurations)
-Add Text Elements into Characters in the order of the stories' flow (one character can have multiple texts with multiple choices for the player) ######
-export as one file -> start with levels array, export as multiple -> one level per file
-export as JSON or XML
-save characters speaking into section but save sequences of multiple characters speaking right after each other in special section called "dialogue"
+### Nodes
+- Add text nodes into section nodes in the order of the stories' flow (one character can have multiple texts they work through during a section entry and one character can appear multiple times during a section with different text configurations)
+- Add text nodes into Characters in the order of the stories' flow (one character can have multiple texts with multiple choices for the player)
+
+### Export
+- export as one file -> start with levels array, export as multiple -> one level per file
+- export as JSON or XML
+- save characters speaking into section but save sequences of multiple characters speaking right after each other in special section called "dialogue"

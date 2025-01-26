@@ -1,6 +1,6 @@
 <script>
-	import Button from "$lib/components/Button.svelte";
-	import Input from "$lib/components/Input.svelte";
+    import Button from "$lib/components/Button.svelte";
+    import Input from "$lib/components/Input.svelte";
 
     export let form;
 </script>
@@ -20,27 +20,37 @@
         </div>
     {/if}
 
-    <h2 class="text-5xl py-3">Register</h2>
-    <form method="POST" action="?/register" class="space-y-5">
-        <Input name="username" label="Username" />
-        <Input name="email" type="email" label="Email" />
-        <Input name="password" label="Password" type="password" />
-        <Input name="confirmPassword" label="Confirm password" type="password" />
-
-        <div class="flex justify-end">
-            <Button type="submit" label="Register" />
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-10 min-h-[50vh]">
+        <div class="col-span-1 flex flex-col justify-between">
+            <div>
+                <h2 class="text-5xl py-3">Register</h2>
+                <form method="POST" action="?/register" class="space-y-5">
+                    <div class="flex flex-col gap-5">
+                        <Input name="username" label="Username" />
+                        <Input name="email" type="email" label="Email" />
+                        <Input name="password" label="Password" type="password" />
+                        <Input name="confirmPassword" label="Confirm password" type="password" />
+                    </div>
+                </form>
+            </div>
+            <div>
+                <Button type="submit" label="Register" />
+            </div>
         </div>
-    </form>
 
-    <hr class="my-10" />
-
-    <h2 class="text-5xl py-3">Login</h2>
-    <form method="POST" action="?/login" class="space-y-5">
-        <Input name="username" label="Username" />
-        <Input name="password" label="Password" type="password" />
-
-        <div class="flex justify-end">
-            <Button type="submit" label="Login" />
+        <div class="col-span-1 md:col-span-2 flex flex-col justify-between">
+            <div>
+                <h2 class="text-5xl py-3">Login</h2>
+                <form method="POST" action="?/login" class="space-y-5">
+                    <div class="flex flex-col gap-5">
+                        <Input name="username" label="Username" />
+                        <Input name="password" label="Password" type="password" />
+                    </div>
+                </form>
+            </div>
+            <div>
+                <Button type="submit" label="Login" />
+            </div>
         </div>
-    </form>
+    </div>
 </main>

@@ -1,7 +1,5 @@
 .env
 
-old/
-
 api/core/__pycache__/
 api/core/migrations/__pycache__/
 api/api/__pycache__/
