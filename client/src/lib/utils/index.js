@@ -8,13 +8,18 @@ function exportJson(entry) {
         return;
     }
     const data = localStorage.getItem(entry);
-    const blob = new Blob([JSON.stringify(data, null, 4)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = entry + '.json';
-    a.click();
-    URL.revokeObjectURL(url);
+    if (data) {
+        const parsedData = JSON.parse(data);
+        const blob = new Blob([JSON.stringify(parsedData, null, 4)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = entry + '.json';
+        a.click();
+        URL.revokeObjectURL(url);
+    } else {
+        console.error('No data found for the given entry');
+    }
 }
 
 /**
