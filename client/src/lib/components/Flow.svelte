@@ -65,7 +65,7 @@
                 section.texts.map((text, index) => {
                     // adding text nodes
                     const position = text.meta.position.split(',');
-                    console.log(text)
+                    
                     extractedNodeInformation.push({
                         id: text.meta.id,
                         type: 'text',
@@ -131,8 +131,8 @@
 
         let json = JSON.parse(localStorage.getItem('json'));
         /**
-		 * @type {string}
-		 */
+         * @type {string}
+         */
         var groupId;
 
         const characterData = event.dataTransfer.getData("character");
@@ -325,7 +325,7 @@
         }]);
 
         saveJSON("json", json);
-    };
+    }
 
     function handleDelete(event) {
         let json = JSON.parse(localStorage.getItem('json'));
