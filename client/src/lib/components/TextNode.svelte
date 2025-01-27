@@ -18,6 +18,7 @@
     export let parentId = $$props.parentId;
 
     let { id, content, character } = data;
+    console.log(data)
     /**
 	 * @type {number | undefined}
 	 */
@@ -62,7 +63,7 @@
 
 <div class="rounded-md p-3 bg-black/10 border {selected ? 'border-red-500' : 'border-black'}">
     <p>
-        <span class="font-semibold font-mono uppercase">Text</span>
+        <span class="font-semibold font-mono uppercase">{character}</span>
     </p>
     <textarea rows="5" type="text" value={content} on:input={(event) => {
         handleInput(event);

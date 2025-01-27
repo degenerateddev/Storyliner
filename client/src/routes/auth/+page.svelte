@@ -20,7 +20,7 @@
         </div>
     {/if}
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-10 min-h-[50vh]">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-10 min-h-[35vh]">
         <form method="POST" action="?/register" class="col-span-1 flex flex-col justify-between">
             <div>
                 <h2 class="text-5xl py-3">Register</h2>

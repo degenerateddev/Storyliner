@@ -38,7 +38,7 @@
         const getNodes = () => {
             let json = JSON.parse(localStorage.getItem('json'));
             /**
-			 * @type {{ id: any; type: string; data: { id: any; label: string; content: any; } | { id: any; label: any; }; position: { x: number; y: number; } | { x: number; y: number; }; }[]}
+			 * @type {{ id: any; type: string; data: { id: any; content: any; character: any } | { id: any; label: any; }; position: { x: number; y: number; } | { x: number; y: number; }; }[]}
 			 */
             let extractedNodeInformation = [];
 
@@ -51,18 +51,21 @@
             
             json.sections = json.sections || [];
             json.sections.map((/** @type {{ texts: any[]; meta: { id: any; }; label: any; }} */ section, /** @type {any} */ index) => {
+                const position = section.meta.position.split(',');
+                
                 // adding section node
                 extractedNodeInformation.push({
                     id: section.meta.id,
                     type: 'section',
                     data: { id: section.meta.id, label: section.label },
-                    position: { x: 100, y: 100 },
+                    position: { x: parseFloat(position[0]), y: parseFloat(position[1]) },
                     style: sectionNodeStyle
                 })
                 
                 section.texts.map((text, index) => {
                     // adding text nodes
                     const position = text.meta.position.split(',');
+                    console.log(text)
                     extractedNodeInformation.push({
                         id: text.meta.id,
                         type: 'text',
@@ -189,7 +192,7 @@
             type: "text",
             position,
             parentId: groupId,
-            data: { id: randID.toString(), character: character.id, content: "" }
+            data: { id: randID.toString(), character: character, content: "" }
         };
 
         json.sections = json.sections || [];
@@ -210,7 +213,7 @@
                     parentId: groupId
                 },
                 data: {
-                    character: character.id,
+                    character: character,
                     content: ""
                 },
             });
