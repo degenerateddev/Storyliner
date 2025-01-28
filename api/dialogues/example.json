@@ -1,6 +1,4 @@
 {
-    "name": "First Level",
-    "description": "Short level description",
     "sections": [
         {
             "meta": {
@@ -22,19 +20,13 @@
                         "custom_key": "Custom data"
                     },
                     "data": {
-                        "character": "characterId",
+                        "character": {
+                            "id": "characterId",
+                            "name": "Character Name",
+                            "meta": ""
+                        },
                         "content": "Are you free tomorrow?",
                         "next": ["1"]
-                        /* "next": [
-                            {
-                                "id": "1",
-                                "condition": "playerChoice == 'No'"
-                            },
-                            {
-                                "id": "2",
-                                "condition": "playerChoice == 'Yes'"
-                            }
-                        ] */
                     }
                 },
                 {
@@ -47,7 +39,11 @@
                         "custom_key": "Custom data"
                     },
                     "data": {
-                        "character": "characterId",
+                        "character": {
+                            "id": "characterId",
+                            "name": "Character Name",
+                            "meta": ""
+                        },
                         "content": "Oh, okay."
                     }
                 }

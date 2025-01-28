@@ -94,13 +94,23 @@
             json.sections = json.sections || [];
             json.sections.map((/** @type {{ texts: any[]; }} */ section, /** @type {any} */ index) => {
                 section.texts.map((text, index) => {
-                    if (text.data.next) {
+                    if (typeof text.data.next === 'string' || typeof text.data.next === 'undefined') {
                         extractedEdgeInformation.push({
                             id: `${text.meta.id}-${text.data.next}`,
                             type: 'default',
                             source: text.meta.id,
                             target: text.data.next,
                             label: 'Next'
+                        });
+                    } else {
+                        text.data.next.map((next, index) => {
+                            extractedEdgeInformation.push({
+                                id: `${text.meta.id}-${next}`,
+                                type: 'default',
+                                source: text.meta.id,
+                                target: next,
+                                label: 'Next'
+                            });
                         });
                     }
                 })
@@ -330,6 +340,47 @@
         saveToDB("actions/json/", "POST", json);
     }
 
+    /**
+	 * @param {{ source: any; target: any; }} connection
+	 */
+    function handleConnect(connection) {
+        let json = JSON.parse(localStorage.getItem('json'));
+
+        const sourceNodeId = connection.source;
+        const targetNodeId = connection.target;
+
+        json.sections.forEach((section, secIndex) => {
+            section.texts.forEach((text, textIndex) => {
+                if (text.meta.id === sourceNodeId) {
+                    // check if data.next is a string or already an array
+                    let next = json.sections[secIndex].texts[textIndex].data.next;
+
+                    if (next === undefined || next === null || next === "") {
+                        json.sections[secIndex].texts[textIndex].data.next = targetNodeId;
+
+                    } else {
+                        json.sections[secIndex].texts[textIndex].data.next = [next, targetNodeId];
+
+                        // @ts-ignore
+                        edges.update(e => [...e, {
+                            source: sourceNodeId,
+                            target: targetNodeId,
+                            id: `${sourceNodeId}--${targetNodeId}`
+                        }]);
+                    }
+                }
+            });
+        });
+
+        json = json;
+
+        saveJSON("json", json);
+        saveToDB("actions/json/", "POST", json);
+    }
+
+    /**
+	 * @param {{ nodes: any[]; }} event
+	 */
     function handleDelete(event) {
         let json = JSON.parse(localStorage.getItem('json'));
 
@@ -374,6 +425,7 @@
         on:drag={onNodeDrag}
         ondelete={handleDelete}
         onconnectend={handleConnectEnd}
+        onconnect={handleConnect}
     >
         <Controls />
         <Background variant={BackgroundVariant.Dots} />
