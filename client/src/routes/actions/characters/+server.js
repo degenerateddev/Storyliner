@@ -5,12 +5,13 @@ export const POST = async ({ request, cookies }) => {
 	const data = await request.json();
 	const token = cookies.get("access");
 
-	if (data[0]) {
+	if (data) {
 		const response = await fetch(PUBLIC_API + "/characters/", {
 			method: 'POST',
 			body: JSON.stringify({
-				"_id": data[0].id,
-				"name": data[0].name,
+				"_id": data.id,
+				"name": data.name,
+				"meta": data.meta
 			}),
 			headers: {
 				'Content-Type': 'application/json',

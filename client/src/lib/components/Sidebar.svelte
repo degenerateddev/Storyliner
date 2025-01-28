@@ -37,7 +37,9 @@
 
             if (newList) {
                 $characters = newList;
-                saveJSON("characters", $characters, false);
+                saveJSON("characters", $characters);
+                saveToDB("actions/characters/", "DELETE", { id: characterId });
+
                 const removed = await saveToDB('actions/characters/', 'DELETE', { id: characterId });
 
                 Swal.fire({
@@ -92,6 +94,7 @@
                 
                 characters.set($characters);
                 saveJSON("characters", $characters);
+                saveToDB("actions/characters/", "POST", { id: randID, name, meta });
 
                 Swal.fire({
                     title: "Character Added",

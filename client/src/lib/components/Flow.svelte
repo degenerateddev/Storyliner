@@ -3,7 +3,7 @@
     import TextNode from "./TextNode.svelte";
     import { writable } from "svelte/store";
     import Sidebar from "./Sidebar.svelte";
-    import { exportJson, saveJSON, useDnD } from "$lib/utils";
+    import { exportJson, saveJSON, saveToDB, useDnD } from "$lib/utils";
     import { onMount } from "svelte";
 	import SectionNode from "./SectionNode.svelte";
 	import Swal from "sweetalert2";
@@ -47,6 +47,7 @@
                     sections: []
                 }
                 saveJSON("json", json);
+                saveToDB("actions/json/", "POST", json);
             }
             
             json.sections = json.sections || [];
@@ -223,6 +224,7 @@
 
         nodes.update(n => [...n, newNode]);
         saveJSON("json", json);
+        saveToDB("actions/json/", "POST", json);
     }
 
     function handleConnectEnd(event, connectionState) {
@@ -325,6 +327,7 @@
         }]);
 
         saveJSON("json", json);
+        saveToDB("actions/json/", "POST", json);
     }
 
     function handleDelete(event) {
@@ -347,6 +350,7 @@
         json = json;
 
         saveJSON("json", json);
+        saveToDB("actions/json/", "POST", json);
 
         Swal.fire({
             title: "Deleted",

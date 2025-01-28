@@ -11,7 +11,7 @@
 
     import Swal from "sweetalert2";
     import { Handle, Position } from "@xyflow/svelte";
-    import { saveJSON } from "$lib/utils";
+    import { saveJSON, saveToDB } from "$lib/utils";
 
     export let data = $$props.data;
     export let selected = $$props.selected;
@@ -48,6 +48,7 @@
                 json = json;
 
                 saveJSON("json", json);
+                saveToDB("actions/json/", "POST", json);
 
                 Swal.fire({
                     title: "Saved",
