@@ -32,15 +32,13 @@
         });
 
         if (formValues) {
-            const characterId = element.id;
+            const characterId = element._id;
             const newList = removeFromList(list, element)
 
             if (newList) {
                 $characters = newList;
                 saveJSON("characters", $characters);
                 saveToDB("actions/characters/", "DELETE", { id: characterId });
-
-                const removed = await saveToDB('actions/characters/', 'DELETE', { id: characterId });
 
                 Swal.fire({
                     title: "Removed",

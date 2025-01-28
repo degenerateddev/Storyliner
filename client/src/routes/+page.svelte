@@ -8,7 +8,7 @@
     import '@xyflow/svelte/dist/style.css';
 	import DnDProvider from "$lib/components/DnDProvider.svelte";
 	import Flow from "$lib/components/Flow.svelte";
-	import { saveJSON, saveToDB } from "$lib/utils/index.js";
+	import { saveJSON } from "$lib/utils/index.js";
 
     // @ts-ignore
     export let data;
