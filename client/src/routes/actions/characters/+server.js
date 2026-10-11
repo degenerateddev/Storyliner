@@ -1,41 +1,12 @@
-import { PUBLIC_API } from '$env/static/public';
-import { json } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
+import { backendFetch, forward } from '$lib/server/backend';
 
-export const POST = async ({ request, cookies }) => {
-	const data = await request.json();
-	const token = cookies.get("access");
+/** Create or update a character. */
+export const POST = async (event) => {
+	const { id, name, meta } = await event.request.json();
+	if (!id || !name) error(400, 'Character needs an id and a name');
 
-	if (data) {
-		const response = await fetch(PUBLIC_API + "/characters/", {
-			method: 'POST',
-			body: JSON.stringify({
-				"_id": data.id,
-				"name": data.name,
-				"meta": data.meta
-			}),
-			headers: {
-				'Content-Type': 'application/json',
-				'Authorization': 'Bearer ' + token
-			}
-		});
-
-		return json(response.status);
-	} 
-
-	return json(400);
+	return forward(
+		await backendFetch(event, '/characters/', { method: 'POST', body: { _id: id, name, meta } })
+	);
 };
-
-export const DELETE = async ({ request, cookies }) => {
-	const data = await request.json();
-	const token = cookies.get("access");
-	
-	const response = await fetch(PUBLIC_API + "/character/" + data.id + "/", {
-		method: 'DELETE',
-		headers: {
-			'Content-Type': 'application/json',
-			'Authorization': 'Bearer ' + token
-		}
-	});
-
-	return json(response.status);
-}

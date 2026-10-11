@@ -1,96 +1,71 @@
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
-from .models import Character, JSON
-from .serializers import CharacterSerializer, JSONSerializer
 from django.contrib.auth.models import User
-from rest_framework import status
+from rest_framework import status, viewsets
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
-import logging
 
-class JSONViewSet(viewsets.ModelViewSet):
+from .models import Character, JSON
+from .serializers import CharacterSerializer, JSONSerializer
+
+
+class JSONViewSet(viewsets.GenericViewSet):
+    """Each user owns exactly one story: GET returns it, POST creates or replaces it."""
+
     serializer_class = JSONSerializer
     permission_classes = [IsAuthenticated]
-    queryset = JSON.objects.all()
 
     def get_queryset(self):
-        return self.queryset.filter(user=self.request.user)
+        return JSON.objects.filter(user=self.request.user)
 
-    def create(self, request, *args, **kwargs):
-        logging.debug(f"Incoming data: {request.data}")
-        try:
-            instance = JSON.objects.get(user=request.user)
-            serializer = self.get_serializer(instance, data=request.data)
-        except JSON.DoesNotExist:
-            serializer = self.get_serializer(data=request.data)
+    def list(self, request):
+        instance = self.get_queryset().first()
+        return Response({"json": instance.json if instance else None})
 
-        if serializer.is_valid():
-            self.perform_create(serializer)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            logging.error(f"Validation errors: {serializer.errors}")
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def create(self, request):
+        instance = self.get_queryset().first()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK if instance else status.HTTP_201_CREATED)
 
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
 
 class CharacterViewSet(viewsets.ModelViewSet):
     serializer_class = CharacterSerializer
     permission_classes = [IsAuthenticated]
-    queryset = Character.objects.all()
+    lookup_field = "_id"
+    lookup_value_regex = "[^/]+"
 
     def get_queryset(self):
-        return self.queryset.filter(user=self.request.user)
-    
+        return Character.objects.filter(user=self.request.user)
+
     def create(self, request, *args, **kwargs):
-        logging.debug(f"Request data: {request.data}")
-        
-        try:
-            id = request.POST.get("id")
-            
-            if (id != None):
-                instance = Character.objects.get(_id=id, user=request.user)
-                serializer = self.get_serializer(instance, data=request.data)
-            else:
-                raise Character.DoesNotExist
-            
-        except Character.DoesNotExist:
-            serializer = self.get_serializer(data=request.data)
+        """Upsert by the client-side `_id`."""
+        instance = self.get_queryset().filter(_id=request.data.get("_id")).first()
+        serializer = self.get_serializer(instance, data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK if instance else status.HTTP_201_CREATED)
 
-        if serializer.is_valid():
-            self.perform_create(serializer)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-    def destroy(self, request, *args, **kwargs):
-        try:
-            instance = self.queryset.get(_id=kwargs['pk'], user=request.user)
-            self.perform_destroy(instance)
-        except:
-            return Response(status=status.HTTP_404_NOT_FOUND)
-        return Response(status=status.HTTP_204_NO_CONTENT)
-    
 class RegisterView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        username = request.data.get('username')
-        password = request.data.get('password')
-        email = request.data.get('email')
+        username = request.data.get("username")
+        password = request.data.get("password")
+        email = request.data.get("email")
 
         if not username or not password or not email:
-            return Response({'error': 'Please provide all required fields'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Please provide all required fields"}, status=status.HTTP_400_BAD_REQUEST)
 
         if User.objects.filter(username=username).exists():
-            return Response({'error': 'Username already exists'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Username already exists"}, status=status.HTTP_400_BAD_REQUEST)
 
         user = User.objects.create_user(username=username, password=password, email=email)
         refresh = RefreshToken.for_user(user)
 
-        return Response({
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {"refresh": str(refresh), "access": str(refresh.access_token)},
+            status=status.HTTP_201_CREATED,
+        )

@@ -1,0 +1,39 @@
+# Storyliner – production stack (works as-is as a Coolify "Docker Compose" resource).
+#
+# Only `web` is public. It talks to `api` over the internal network; the browser never
+# calls the Django API directly. Data (SQLite database + generated secret key) lives in
+# the `storyliner-data` volume.
+services:
+  web:
+    build: ./client
+    restart: unless-stopped
+    environment:
+      # Coolify: assigns a domain to this service and proxies it to port 3000.
+      - SERVICE_FQDN_WEB_3000
+      - API_URL=http://api:8000/api
+      # Trust the reverse proxy (Coolify's Traefik/Caddy) for the public URL and HTTPS.
+      - PROTOCOL_HEADER=x-forwarded-proto
+      - HOST_HEADER=x-forwarded-host
+      - BODY_SIZE_LIMIT=10M
+    expose:
+      - "3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    environment:
+      # Optional: set your own key in Coolify; otherwise one is generated and stored in the volume.
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-}
+      - DJANGO_DEBUG=0
+      - DJANGO_ALLOWED_HOSTS=api,localhost,127.0.0.1
+      - GUNICORN_WORKERS=${GUNICORN_WORKERS:-3}
+    expose:
+      - "8000"
+    volumes:
+      - storyliner-data:/app/data
+
+volumes:
+  storyliner-data:

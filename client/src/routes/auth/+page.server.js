@@ -1,100 +1,63 @@
-import { PUBLIC_API } from '$env/static/public';
-import { fail } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
+import { postPublic, setAuthCookies } from '$lib/server/backend';
+
+/** @param {FormData} data @param {string} key */
+const field = (data, key) => String(data.get(key) ?? '').trim();
 
 export const actions = {
-    register: async (event) => {
-        const data = await event.request.formData();
-        const username = data.get('username')
-        const password = data.get('password')
-        const confirmPassword = data.get('confirmPassword')
-        const email = data.get('email')
+	register: async (event) => {
+		const { request, fetch } = event;
+		const data = await request.formData();
+		const username = field(data, 'username');
+		const email = field(data, 'email');
+		const password = String(data.get('password') ?? '');
+		const confirmPassword = String(data.get('confirmPassword') ?? '');
+		const values = { mode: 'register', username, email };
 
-        if (!username || !password || !email) {
-            return fail(400, {
-                error: "Missing required fields"
-            });
-        }
+		if (!username || !email || !password) {
+			return fail(400, { ...values, error: 'Please fill in all fields.' });
+		}
+		if (password !== confirmPassword) {
+			return fail(400, { ...values, error: 'Passwords do not match.' });
+		}
 
-        if (password !== confirmPassword) {
-            return fail(400, {
-                error: "Passwords do not match"
-            });
-        }
+		let response;
+		try {
+			response = await postPublic(fetch, '/register/', { username, email, password });
+		} catch {
+			return fail(503, { ...values, error: 'The server is unreachable. Please try again later.' });
+		}
+		if (!response.ok) {
+			const body = await response.json().catch(() => ({}));
+			return fail(response.status, { ...values, error: body.error ?? 'Registration failed.' });
+		}
 
-        const response = await fetch(PUBLIC_API + "/register/", {
-            method: 'POST',
-            body: JSON.stringify({
-                username: data.get('username'),
-                password: data.get('password'),
-                email: data.get('email')
-            }),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
+		setAuthCookies(event, await response.json());
+		redirect(303, '/');
+	},
 
-        if (response.ok) {
-            const tokens = await response.json();
+	login: async (event) => {
+		const { request, fetch } = event;
+		const data = await request.formData();
+		const username = field(data, 'username');
+		const password = String(data.get('password') ?? '');
+		const values = { mode: 'login', username };
 
-            event.cookies.set('access', tokens.access, {
-                path: '/',
-                httpOnly: true,
-            });
-            event.cookies.set('refresh', tokens.refresh, {
-                path: '/',
-                httpOnly: true,
-            })
+		if (!username || !password) {
+			return fail(400, { ...values, error: 'Please enter your username and password.' });
+		}
 
-            return {
-                success: true
-            }
+		let response;
+		try {
+			response = await postPublic(fetch, '/token/', { username, password });
+		} catch {
+			return fail(503, { ...values, error: 'The server is unreachable. Please try again later.' });
+		}
+		if (!response.ok) {
+			return fail(response.status, { ...values, error: 'Wrong username or password.' });
+		}
 
-        } else {
-            return fail(response.status, {
-                error: "Failed to register"
-            });
-        }
-    },
-
-    login: async (event) => {
-        const data = await event.request.formData();
-        const username = data.get('username')
-        const password = data.get('password')
-
-        if (!username || !password) {
-            return fail(400, {
-                error: "Missing required fields"
-            });
-        }
-
-        const response = await fetch(PUBLIC_API + "/token/", {
-            method: 'POST',
-            body: JSON.stringify({ username, password }),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (response.ok) {
-            const tokens = await response.json();
-
-            event.cookies.set('access', tokens.access, {
-                path: '/',
-                httpOnly: true,
-            });
-            event.cookies.set('refresh', tokens.refresh, {
-                path: '/',
-                httpOnly: true,
-            })
-
-            return {
-                success: true
-            }
-
-        } else {
-            return fail(response.status, {
-                error: "Failed to login"
-            });
-        }
-    },
-}
+		setAuthCookies(event, await response.json());
+		redirect(303, '/');
+	}
+};

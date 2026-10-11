@@ -1,17 +1,19 @@
-import { PUBLIC_API } from '$env/static/public';
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 
 /** @type {import('@sveltejs/kit').Handle} */
 export async function handle({ event, resolve }) {
-	const cookies = event.cookies;
+	const { pathname } = event.url;
+	const loggedIn = Boolean(event.cookies.get('refresh'));
+	const onAuthPage = pathname === '/auth';
 
-	if (event.url.pathname !== "/auth") {
-		if (!(cookies.get("access") && cookies.get("refresh"))) {
-			return redirect(303, "/auth");
-		}
+	if (pathname === '/health') return resolve(event);
+
+	if (!loggedIn && !onAuthPage) {
+		// fetch() calls from the editor should see a 401, not an HTML redirect.
+		if (pathname.startsWith('/actions/')) error(401, 'Not logged in');
+		redirect(303, '/auth');
 	}
+	if (loggedIn && onAuthPage && event.request.method === 'GET') redirect(303, '/');
 
-	const response = await resolve(event);
-
-	return response;
+	return resolve(event);
 }

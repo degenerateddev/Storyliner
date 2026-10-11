@@ -1,7 +1,8 @@
 .env
 
-api/core/__pycache__/
-api/core/migrations/__pycache__/
-api/api/__pycache__/
-
+__pycache__/
+venv/
 api/db.sqlite3
+
+.dual-graph/
+CLAUDE.md

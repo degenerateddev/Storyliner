@@ -1,3 +1,44 @@
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
-@import 'tailwindcss/utilities'
+@import 'tailwindcss/utilities';
+
+@layer base {
+	html {
+		@apply bg-stone-50 font-sans text-stone-900 antialiased;
+	}
+}
+
+/* Svelte Flow theming */
+.svelte-flow {
+	--xy-edge-stroke: theme('colors.stone.400');
+	--xy-edge-stroke-selected: theme('colors.accent.600');
+	--xy-edge-stroke-width: 2;
+	--xy-connectionline-stroke: theme('colors.accent.500');
+	--xy-connectionline-stroke-width: 2;
+	--xy-background-pattern-dots-color: theme('colors.stone.300');
+	--xy-minimap-background-color: theme('colors.white');
+	--xy-controls-button-background-color-hover: theme('colors.stone.100');
+}
+
+.svelte-flow__node-text .svelte-flow__handle {
+	width: 12px;
+	height: 12px;
+	border: 2px solid white;
+	background: theme('colors.stone.500');
+	transition: background-color 100ms;
+}
+
+.svelte-flow__node-text .svelte-flow__handle:hover,
+.svelte-flow__handle.connectingfrom,
+.svelte-flow__handle.valid {
+	background: theme('colors.accent.600');
+}
+
+.svelte-flow__edge.selected .svelte-flow__edge-path {
+	stroke-width: 3;
+}
+
+.svelte-flow__minimap,
+.svelte-flow__controls {
+	@apply overflow-hidden rounded-lg shadow-sm ring-1 ring-stone-200;
+}

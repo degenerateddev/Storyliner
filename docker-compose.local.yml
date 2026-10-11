@@ -1,0 +1,9 @@
+# Run the production stack locally:
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
+# then open http://localhost:3000 (set WEB_PORT to use another port).
+services:
+  web:
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      - ORIGIN=http://localhost:${WEB_PORT:-3000}

@@ -1,22 +1,22 @@
 {
+    "name": "First Level",
     "sections": [
         {
             "meta": {
                 "id": "S0",
                 "position": "0,0",
                 "type": "section",
-
-                "custom_key": "Custom data"
+                "custom_key": "Custom data",
+                "size": "640,400"
             },
             "label": "First Section",
             "texts": [
                 {
                     "meta": {
                         "id": "0",
-                        "position": "0,0",
+                        "position": "24,56",
                         "type": "text",
                         "parentId": "S0",
-
                         "custom_key": "Custom data"
                     },
                     "data": {
@@ -26,16 +26,17 @@
                             "meta": ""
                         },
                         "content": "Are you free tomorrow?",
-                        "next": ["1"]
+                        "next": [
+                            "1"
+                        ]
                     }
                 },
                 {
                     "meta": {
                         "id": "1",
-                        "position": "10,0",
+                        "position": "320,56",
                         "type": "text",
                         "parentId": "S0",
-
                         "custom_key": "Custom data"
                     },
                     "data": {
@@ -44,7 +45,8 @@
                             "name": "Character Name",
                             "meta": ""
                         },
-                        "content": "Oh, okay."
+                        "content": "Oh, okay.",
+                        "next": []
                     }
                 }
             ]

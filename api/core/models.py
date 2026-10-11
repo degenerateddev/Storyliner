@@ -1,24 +1,29 @@
-from django.db import models
 from django.conf import settings
-import uuid
+from django.db import models
 
-def upload_to(instance, filename):
-    ext = filename.split('.')[-1]
-    return f'json/{uuid.uuid4()}.{ext}'
 
 class Character(models.Model):
-    _id = models.IntegerField()
+    # Client-generated id (UUID) so the editor can reference characters before they are saved.
+    _id = models.CharField(max_length=64)
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     meta = models.JSONField(null=True, blank=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "_id"], name="unique_character_per_user"),
+        ]
+
     def __str__(self):
         return self.name
 
+
 class JSON(models.Model):
-    id = models.IntegerField(primary_key=True)
+    """The story graph of a user (one per user)."""
+
+    id = models.BigAutoField(primary_key=True)
     user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     json = models.JSONField()
 
     def __str__(self):
-        return str(self.id)
+        return f"Story of {self.user}"

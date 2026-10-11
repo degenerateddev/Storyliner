@@ -1,48 +1,52 @@
 <script>
-    // @ts-ignore
-    import { onMount, setContext } from "svelte";
+	import { SvelteFlowProvider } from '@xyflow/svelte';
+	import '@xyflow/svelte/dist/style.css';
+	import Canvas from '$lib/components/editor/Canvas.svelte';
+	import CharacterPanel from '$lib/components/editor/CharacterPanel.svelte';
+	import Toolbar from '$lib/components/editor/Toolbar.svelte';
+	import { EditorStore, setEditor } from '$lib/story/store.svelte.js';
 
-    import {
-		SvelteFlowProvider,
-    } from '@xyflow/svelte';
-    import '@xyflow/svelte/dist/style.css';
-	import DnDProvider from "$lib/components/DnDProvider.svelte";
-	import Flow from "$lib/components/Flow.svelte";
-	import { saveJSON } from "$lib/utils/index.js";
+	let { data } = $props();
 
-    // @ts-ignore
-    export let data;
+	// The editor owns its state after the initial load.
+	// svelte-ignore state_referenced_locally
+	const editor = setEditor(new EditorStore(data));
 
-    // @ts-ignore
-    var json = data.json.length > 0 ? data.json[0].json : (typeof window !== 'undefined' && JSON.parse(localStorage.getItem("json"))) || [];
-    if (json) {
-        saveJSON("json", json);
-        // not sure if state shall sync with DB, syncing with DB on creating new elements ONLY (characters, json) seems better to not revert back to previous state in case of failure 
-        //saveToDB("actions/json/", "POST", json);
-    }
+	let panelOpen = $state(true);
 
-    onMount(() => {
-        // @ts-ignore
-        const characters = data.characters.length > 0 ? data.characters : (typeof window !== 'undefined' && JSON.parse(localStorage.getItem("characters"))) || [];
-        
-        if (characters) {
-            saveJSON("characters", characters);
-            setContext('characters', characters);
-        }
-    });
+	/** @param {KeyboardEvent} event */
+	function onKeydown(event) {
+		if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+			event.preventDefault();
+			editor.flush();
+		}
+	}
+
+	/** @param {BeforeUnloadEvent} event */
+	function onBeforeUnload(event) {
+		if (!editor.hasUnsavedChanges) return;
+		editor.flush();
+		event.preventDefault();
+	}
 </script>
 
-<main>
-    <div class="flex gap-5">
-        <div class="flex flex-col flex-grow">
-            <!-- svelte-ignore a11y_no_static_element_interactions -->
-            <div class="w-full h-full rounded-md">
-                <SvelteFlowProvider>
-                    <DnDProvider>
-                        <Flow></Flow>
-                    </DnDProvider>
-                </SvelteFlowProvider>
-            </div>
-        </div>
-    </div>
-</main>
+<svelte:window onkeydown={onKeydown} onbeforeunload={onBeforeUnload} />
+<svelte:head>
+	<title>{editor.info.name} · Storyliner</title>
+</svelte:head>
+
+<div class="flex h-screen flex-col bg-stone-50">
+	<SvelteFlowProvider>
+		<Toolbar bind:panelOpen />
+		<div class="flex min-h-0 flex-1">
+			{#if panelOpen}
+				<CharacterPanel />
+			{/if}
+			<main class="relative min-w-0 flex-1">
+				{#key editor.revision}
+					<Canvas />
+				{/key}
+			</main>
+		</div>
+	</SvelteFlowProvider>
+</div>
