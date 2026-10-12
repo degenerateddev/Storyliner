@@ -6,13 +6,21 @@ export const EDGE_DEFAULTS = {
 	markerEnd: { type: MarkerType.ArrowClosed, width: 18, height: 18 }
 };
 
-/** @param {string} source @param {string} target */
-export const makeEdge = (source, target) => ({
+/**
+ * @param {string} source
+ * @param {string} target
+ * @param {string | null} [sourceHandle] - choice id when the edge starts at a choice
+ */
+export const makeEdge = (source, target, sourceHandle = null) => ({
 	...EDGE_DEFAULTS,
-	id: `${source}->${target}`,
+	id: sourceHandle ? `${source}:${sourceHandle}->${target}` : `${source}->${target}`,
 	source,
-	target
+	target,
+	sourceHandle
 });
+
+/** @param {string} line @param {string} choice */
+const choiceKey = (line, choice) => JSON.stringify([line, choice]);
 
 /**
  * Story JSON -> Svelte Flow nodes/edges. Sections always precede their texts.
@@ -44,9 +52,21 @@ export function storyToFlow(story) {
 				type: 'text',
 				parentId: section.meta.id,
 				position: { x: tx, y: ty },
-				data: { character: text.data.character, content: text.data.content, raw: text }
+				data: {
+					character: text.data.character,
+					content: text.data.content,
+					choices: text.data.choices.map((/** @type {any} */ choice) => ({
+						id: choice.id,
+						text: choice.text,
+						raw: choice
+					})),
+					raw: text
+				}
 			});
 			for (const target of text.data.next) edges.push(makeEdge(text.meta.id, target));
+			for (const choice of text.data.choices) {
+				if (choice.next) edges.push(makeEdge(text.meta.id, choice.next, choice.id));
+			}
 		}
 	}
 
@@ -64,9 +84,15 @@ export function storyToFlow(story) {
 export function flowToStory(nodes, edges, characters, info) {
 	const charactersById = new Map(characters.map((c) => [c.id, c]));
 
-	/** @type {Map<string, string[]>} */
+	/** Plain arrows, keyed by source line. @type {Map<string, string[]>} */
 	const nextBySource = new Map();
+	/** Choice arrows, keyed by choiceKey(line, choice). @type {Map<string, string>} */
+	const nextByChoice = new Map();
 	for (const edge of edges) {
+		if (edge.sourceHandle) {
+			nextByChoice.set(choiceKey(edge.source, edge.sourceHandle), edge.target);
+			continue;
+		}
 		const list = nextBySource.get(edge.source) ?? [];
 		if (!list.includes(edge.target)) list.push(edge.target);
 		nextBySource.set(edge.source, list);
@@ -115,7 +141,13 @@ export function flowToStory(nodes, edges, characters, info) {
 				...raw.data,
 				character,
 				content: node.data.content ?? '',
-				next: nextBySource.get(node.id) ?? []
+				next: nextBySource.get(node.id) ?? [],
+				choices: (node.data.choices ?? []).map((/** @type {any} */ choice) => ({
+					...choice.raw,
+					id: choice.id,
+					text: choice.text ?? '',
+					next: nextByChoice.get(choiceKey(node.id, choice.id)) ?? ''
+				}))
 			}
 		});
 	}

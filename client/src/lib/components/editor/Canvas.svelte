@@ -12,9 +12,18 @@
 	import SectionNode from './SectionNode.svelte';
 	import { getEditor } from '$lib/story/store.svelte.js';
 	import { EDGE_DEFAULTS, flowToStory, makeEdge, storyToFlow } from '$lib/story/convert';
-	import { newId, SECTION_SIZE, TEXT_WIDTH } from '$lib/story/model';
+	import {
+		CHOICE_PREFIX,
+		cleanId,
+		LINE_PREFIX,
+		newId,
+		readableId,
+		SECTION_SIZE,
+		TEXT_WIDTH
+	} from '$lib/story/model';
 	import { CHARACTER_MIME, characterColor } from '$lib/story/characters';
 	import { confirm } from '$lib/components/ui/confirm.svelte.js';
+	import { setCanvasActions } from './canvas-actions';
 
 	const nodeTypes = { text: TextNode, section: SectionNode };
 	const SECTION_PADDING = { x: 24, top: 56, bottom: 24 };
@@ -90,11 +99,17 @@
 		};
 
 		const text = {
-			id: newId(),
+			id: readableId(LINE_PREFIX, takenIds()),
 			type: 'text',
 			parentId: section.id,
 			position,
-			data: { character: character ? { ...character } : null, content: '', raw: {}, focus: true }
+			data: {
+				character: character ? { ...character } : null,
+				content: '',
+				choices: [],
+				raw: {},
+				focus: true
+			}
 		};
 		nodes = [
 			...nodes.map((node) => (node.id === section.id ? { ...node, ...needed } : node)),
@@ -102,6 +117,84 @@
 		];
 		return text;
 	}
+
+	/** Line and choice ids share one namespace, so every id works as a localization key. */
+	const takenIds = () =>
+		nodes.flatMap((node) => [
+			node.id,
+			...(node.data.choices ?? []).map((/** @type {any} */ choice) => choice.id)
+		]);
+
+	/**
+	 * @param {string} lineId
+	 * @param {(choices: any[]) => any[]} change
+	 */
+	const updateChoices = (lineId, change) =>
+		(nodes = nodes.map((node) =>
+			node.id === lineId
+				? { ...node, data: { ...node.data, choices: change(node.data.choices ?? []) } }
+				: node
+		));
+
+	/**
+	 * The new id when `value` can replace `current`, otherwise null.
+	 * @param {string} current
+	 * @param {string} value
+	 */
+	function validRename(current, value) {
+		const id = cleanId(value);
+		if (!id || id === current || takenIds().includes(id)) return null;
+		return id;
+	}
+
+	setCanvasActions({
+		addChoice(lineId) {
+			const id = readableId(CHOICE_PREFIX, takenIds());
+			updateChoices(lineId, (choices) => [...choices, { id, text: '', raw: {} }]);
+			return id;
+		},
+
+		removeChoice(lineId, choiceId) {
+			// Edges first: an edge whose handle no longer exists is an error in Svelte Flow.
+			edges = edges.filter((edge) => !(edge.source === lineId && edge.sourceHandle === choiceId));
+			updateChoices(lineId, (choices) => choices.filter((choice) => choice.id !== choiceId));
+		},
+
+		renameChoice(lineId, choiceId, value) {
+			if (cleanId(value) === choiceId) return true;
+			const id = validRename(choiceId, value);
+			if (!id) return false;
+			edges = edges.map((edge) =>
+				edge.source === lineId && edge.sourceHandle === choiceId
+					? { ...edge, ...makeEdge(edge.source, edge.target, id) }
+					: edge
+			);
+			updateChoices(lineId, (choices) =>
+				choices.map((choice) => (choice.id === choiceId ? { ...choice, id } : choice))
+			);
+			return true;
+		},
+
+		renameLine(lineId, value) {
+			if (cleanId(value) === lineId) return true;
+			const id = validRename(lineId, value);
+			if (!id) return false;
+			/** @param {string} nodeId */
+			const swap = (nodeId) => (nodeId === lineId ? id : nodeId);
+			edges = edges.map((edge) =>
+				edge.source === lineId || edge.target === lineId
+					? {
+							...edge,
+							...makeEdge(swap(edge.source), swap(edge.target), edge.sourceHandle ?? null)
+						}
+					: edge
+			);
+			nodes = nodes.map((node) =>
+				node.id === lineId ? { ...node, id, data: { ...node.data, focus: false } } : node
+			);
+			return true;
+		}
+	});
 
 	/** @param {DragEvent} event */
 	function onDragOver(event) {
@@ -131,13 +224,36 @@
 			{ x: point.x, y: point.y - 20 },
 			/** @type {any} */ (source.data.character) ?? null
 		);
-		edges = [...edges, makeEdge(source.id, text.id)];
+		connect(makeEdge(source.id, text.id, connection.fromHandle.id ?? null));
+	}
+
+	/**
+	 * Add an edge. A choice leads to exactly one line, so its previous edge is replaced.
+	 * @param {any} edge
+	 */
+	function connect(edge) {
+		const others = edge.sourceHandle
+			? edges.filter((e) => !(e.source === edge.source && e.sourceHandle === edge.sourceHandle))
+			: edges;
+		edges = [...others.filter((e) => e.id !== edge.id), edge];
+	}
+
+	/** @type {import('@xyflow/svelte').OnBeforeConnect} */
+	function onBeforeConnect(connection) {
+		connect(makeEdge(connection.source, connection.target, connection.sourceHandle ?? null));
+		// The edge is already added; returning nothing stops Svelte Flow from adding it again.
+		return undefined;
 	}
 
 	/** @param {any} connection */
 	const isValidConnection = (connection) =>
 		connection.source !== connection.target &&
-		!edges.some((edge) => edge.source === connection.source && edge.target === connection.target);
+		!edges.some(
+			(edge) =>
+				edge.source === connection.source &&
+				edge.target === connection.target &&
+				(edge.sourceHandle ?? null) === (connection.sourceHandle ?? null)
+		);
 
 	/** Moving a line onto another section moves it into that section. */
 	/** @param {{ nodes: any[] }} event */
@@ -204,6 +320,7 @@
 		fitViewOptions={{ maxZoom: 1 }}
 		minZoom={0.1}
 		deleteKey={['Delete', 'Backspace']}
+		onbeforeconnect={onBeforeConnect}
 		onconnectend={onConnectEnd}
 		onnodedragstop={onNodeDragStop}
 		onbeforedelete={onBeforeDelete}
@@ -230,7 +347,8 @@
 					</li>
 					<li>
 						<span class="font-semibold text-accent-600">3.</span> Drag from a line's right handle to
-						another line to connect them, or onto empty space to create the next line.
+						another line to connect them, or onto empty space to create the next line. Use a line's
+						<span class="font-semibold">+</span> button to add player choices.
 					</li>
 				</ol>
 			</div>

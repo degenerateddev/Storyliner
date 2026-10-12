@@ -1,4 +1,4 @@
-import { joinLines, lineTag, optionLabel, speakerName, textLines } from '../text';
+import { joinLines, lineTag, speakerName, textLines } from '../text';
 
 /** Escape characters that Yarn would read as markup, commands, tags or comments. */
 const escape = (/** @type {string} */ text) =>
@@ -31,7 +31,10 @@ export function renderYarn(story) {
 		if (exit.type === 'goto') out.push(`<<jump ${exit.target.name}>>`);
 		if (exit.type === 'choice') {
 			for (const option of exit.options) {
-				out.push(`-> ${escape(optionLabel(option.line))}`, `    <<jump ${option.target.name}>>`);
+				out.push(
+					`-> ${escape(option.label)}${option.id ? ` #line:${lineTag(option.id)}` : ''}`,
+					option.target ? `    <<jump ${option.target.name}>>` : '    <<stop>>'
+				);
 			}
 		}
 		out.push('===', '');

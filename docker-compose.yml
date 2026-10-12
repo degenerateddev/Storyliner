@@ -8,15 +8,17 @@ services:
     build: ./client
     restart: unless-stopped
     environment:
-      # Coolify: assigns a domain to this service and proxies it to port 3000.
-      - SERVICE_FQDN_WEB_3000
-      - API_URL=http://api:8000/api
+      # Coolify: assigns a domain to this service and proxies it to port 3010.
+      - SERVICE_FQDN_WEB_3010
+      - API_URL=http://api:9010/api
       # Trust the reverse proxy (Coolify's Traefik/Caddy) for the public URL and HTTPS.
       - PROTOCOL_HEADER=x-forwarded-proto
       - HOST_HEADER=x-forwarded-host
       - BODY_SIZE_LIMIT=10M
-    expose:
-      - "3000"
+    # Published on the host so a reverse proxy (e.g. Nginx Proxy Manager) can forward to
+    # <server-ip>:3010. Override with WEB_PORT if 3010 is taken.
+    ports:
+      - "${WEB_PORT:-3010}:3010"
     depends_on:
       api:
         condition: service_healthy
@@ -30,8 +32,9 @@ services:
       - DJANGO_DEBUG=0
       - DJANGO_ALLOWED_HOSTS=api,localhost,127.0.0.1
       - GUNICORN_WORKERS=${GUNICORN_WORKERS:-3}
+    # Internal only – not published on the host.
     expose:
-      - "8000"
+      - "9010"
     volumes:
       - storyliner-data:/app/data
 

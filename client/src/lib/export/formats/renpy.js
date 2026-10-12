@@ -1,5 +1,5 @@
 import { characterHex } from '$lib/story/characters';
-import { identifier, joinLines, optionLabel, textLines, uniqueNamer } from '../text';
+import { identifier, joinLines, textLines, uniqueNamer } from '../text';
 
 /** Names Ren'Py (or Python) already uses. */
 const RESERVED = new Set(
@@ -63,8 +63,8 @@ export function renderRenpy(story) {
 			out.push('    menu:');
 			for (const option of exit.options) {
 				out.push(
-					`        ${quote(optionLabel(option.line))}:`,
-					`            jump ${label(option.target.name)}`
+					`        ${quote(option.label)}:`,
+					`            ${option.target ? `jump ${label(option.target.name)}` : 'return'}`
 				);
 			}
 		}

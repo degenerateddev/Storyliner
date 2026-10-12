@@ -2,7 +2,7 @@ import { env } from '$env/dynamic/private';
 import { json } from '@sveltejs/kit';
 
 /** Django API base URL, read at runtime (e.g. http://api:8000/api inside Docker). */
-const apiUrl = () => (env.API_URL || 'http://127.0.0.1:8000/api').replace(/\/$/, '');
+const apiUrl = () => (env.API_URL || 'http://127.0.0.1:9010/api').replace(/\/$/, '');
 
 const ACCESS_MAX_AGE = 60 * 120; // matches SIMPLE_JWT ACCESS_TOKEN_LIFETIME
 const REFRESH_MAX_AGE = 60 * 60 * 24; // matches SIMPLE_JWT REFRESH_TOKEN_LIFETIME

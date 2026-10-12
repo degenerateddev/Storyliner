@@ -4,15 +4,19 @@ const csvField = (value) => {
 	return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 };
 
+/** @param {string} text */
+const unrealString = (text) => JSON.stringify(text.replace(/[\r\n]+/g, ' '));
+
 /**
  * One row per line – matches an Unreal DataTable row struct with the columns
- * Section (FName), SpeakerId (FName), Speaker (FString), Text (FText), Next (TArray<FName>), IsStart (bool).
+ * Section (FName), SpeakerId (FName), Speaker (FString), Text (FText), Next (TArray<FName>),
+ * Choices (TArray<FStorylinerChoice>: Id FName, Text FString, Next FName) and IsStart (bool).
  * Also opens in any spreadsheet for proofreading or localization.
  * @param {import('../graph').CompiledStory} story
  */
 export function renderCsv(story) {
 	const entries = new Set(story.entries.map((block) => block.lines[0].id));
-	const rows = [['Name', 'Section', 'SpeakerId', 'Speaker', 'Text', 'Next', 'IsStart']];
+	const rows = [['Name', 'Section', 'SpeakerId', 'Speaker', 'Text', 'Next', 'Choices', 'IsStart']];
 
 	for (const line of story.lines) {
 		rows.push([
@@ -23,6 +27,13 @@ export function renderCsv(story) {
 			line.text,
 			// Unreal's text format for arrays: ("a","b")
 			`(${line.next.map((id) => `"${id}"`).join(',')})`,
+			// ...and for arrays of structs: ((Id="a",Text="b",Next="c"))
+			`(${line.choices
+				.map(
+					({ id, text, next }) =>
+						`(Id=${unrealString(id)},Text=${unrealString(text)},Next=${unrealString(next)})`
+				)
+				.join(',')})`,
 			entries.has(line.id) ? 'True' : 'False'
 		]);
 	}
@@ -50,7 +61,8 @@ export function renderFlatJson(story) {
 			speakerId: line.speaker?.id ?? '',
 			speakerName: line.speaker?.name ?? '',
 			text: line.text,
-			next: line.next
+			next: line.next,
+			choices: line.choices.map(({ id, text, next }) => ({ id, text, next }))
 		}))
 	};
 	return JSON.stringify(graph, null, 2) + '\n';

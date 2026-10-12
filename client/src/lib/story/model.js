@@ -1,7 +1,8 @@
 /**
  * Story JSON format (see README):
  * { name, sections: [{ meta: { id, position: "x,y", size: "w,h", type }, label,
- *   texts: [{ meta: { id, position: "x,y", parentId, type }, data: { character, content, next: [ids] } }] }] }
+ *   texts: [{ meta: { id, position: "x,y", parentId, type },
+ *     data: { character, content, next: [ids], choices: [{ id, text, next: id | "" }] } }] }] }
  * Unknown keys are preserved so engine-specific data survives a round trip.
  */
 
@@ -9,6 +10,31 @@ export const SECTION_SIZE = { width: 640, height: 400 };
 export const TEXT_WIDTH = 256;
 
 export const newId = () => crypto.randomUUID();
+
+/** Prefixes of the readable ids generated for lines and choices (ids stay editable). */
+export const LINE_PREFIX = 'L';
+export const CHOICE_PREFIX = 'C';
+
+/**
+ * Smallest readable id `<prefix><n>` that is not taken yet.
+ * @param {string} prefix
+ * @param {Iterable<string>} taken
+ */
+export function readableId(prefix, taken) {
+	const used = new Set(taken);
+	let n = 1;
+	while (used.has(`${prefix}${n}`)) n++;
+	return `${prefix}${n}`;
+}
+
+/**
+ * Cleaned-up user input for an id: trimmed, no whitespace. Empty when unusable.
+ * @param {unknown} value
+ */
+export const cleanId = (value) =>
+	String(value ?? '')
+		.trim()
+		.replace(/\s+/g, '_');
 
 /**
  * Parse an "a,b" string into two numbers.
@@ -56,8 +82,29 @@ function toIdList(next) {
 }
 
 /**
+ * Player choices of a line: `{ id, text, next }`, `next` being a single line id or "".
+ * @param {unknown} choices
+ * @param {string} lineId - used to build ids for choices that have none
+ */
+function toChoices(choices, lineId) {
+	if (!Array.isArray(choices)) return [];
+	const ids = new Set();
+	return choices.filter(isObject).map((choice, index) => {
+		let id = cleanId(choice.id) || `${lineId}_${CHOICE_PREFIX}${index + 1}`;
+		while (ids.has(id)) id = `${id}_`;
+		ids.add(id);
+		return {
+			...choice,
+			id,
+			text: typeof choice.text === 'string' ? choice.text : '',
+			next: toIdList(choice.next)[0] ?? ''
+		};
+	});
+}
+
+/**
  * Bring any (legacy) story into the current shape: `next` is always an id array without
- * dangling references, ids are strings, sections have a size.
+ * dangling references, `choices` always an array, ids are strings, sections have a size.
  * @param {any} raw
  */
 export function normalizeStory(raw) {
@@ -105,7 +152,8 @@ export function normalizeStory(raw) {
 						...data,
 						character: data.character ? normalizeCharacter(data.character) : null,
 						content: typeof data.content === 'string' ? data.content : '',
-						next: toIdList(data.next)
+						next: toIdList(data.next),
+						choices: toChoices(data.choices, String(text.meta.id))
 					}
 				};
 			})
@@ -122,6 +170,9 @@ export function normalizeStory(raw) {
 			text.data.next = [...new Set(text.data.next)].filter(
 				(id) => textIds.has(id) && id !== text.meta.id
 			);
+			for (const choice of text.data.choices) {
+				if (!textIds.has(choice.next) || choice.next === text.meta.id) choice.next = '';
+			}
 		}
 	}
 

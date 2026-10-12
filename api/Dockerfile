@@ -14,11 +14,11 @@ COPY . .
 RUN useradd --create-home --uid 1000 app && mkdir -p /app/data && chown -R app:app /app/data
 USER app
 
-EXPOSE 8000
+EXPOSE 9010
 VOLUME ["/app/data"]
 
 HEALTHCHECK --interval=10s --timeout=5s --start-period=20s --retries=5 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health/', timeout=4)"
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:9010/api/health/', timeout=4)"
 
 # Apply migrations on every start, then serve with gunicorn.
-CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn api.wsgi:application --bind 0.0.0.0:8000 --workers ${GUNICORN_WORKERS:-3} --access-logfile -"]
+CMD ["sh", "-c", "python manage.py migrate --noinput && exec gunicorn api.wsgi:application --bind 0.0.0.0:9010 --workers ${GUNICORN_WORKERS:-3} --access-logfile -"]

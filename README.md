@@ -10,15 +10,15 @@ The repository contains a ready-to-use `docker-compose.yml`:
 
 | Service | What it is | Exposed |
 |---|---|---|
-| `web` | SvelteKit app (Node, port 3000) – the only public service | yes |
-| `api` | Django REST API (gunicorn, port 8000), only reachable from `web` | no |
+| `web` | SvelteKit app (Node, port 3010) – the only public service, published on host port 3010 | yes |
+| `api` | Django REST API (gunicorn, port 9010), only reachable from `web` | no |
 
 Data (SQLite database and the generated Django secret key) is stored in the `storyliner-data` volume.
 Migrations run automatically when the API starts.
 
 **Coolify**
 1. *New resource → Docker Compose* (or *Public/Private Repository* with build pack *Docker Compose*), pointing at this repository and `docker-compose.yml`.
-2. Assign a domain to the `web` service (Coolify pre-fills one through `SERVICE_FQDN_WEB_3000`; it must point to port 3000).
+2. Assign a domain to the `web` service (Coolify pre-fills one through `SERVICE_FQDN_WEB_3010`; it must point to port 3010).
 3. Deploy. Optional environment variables: `DJANGO_SECRET_KEY` (otherwise generated once and kept in the volume), `GUNICORN_WORKERS` (default 3).
 4. Back up the `storyliner-data` volume – it holds all users and stories.
 
@@ -26,7 +26,7 @@ Migrations run automatically when the API starts.
 ```
 docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 ```
-Then open http://localhost:3000 (use `WEB_PORT=3100 docker compose ...` if port 3000 is taken).
+Then open http://localhost:3010 (use `WEB_PORT=3100 docker compose ...` if port 3010 is taken).
 
 ## Development setup
 
@@ -36,7 +36,7 @@ cd api
 python -m venv venv && venv/Scripts/activate   # or: source venv/bin/activate
 pip install -r requirements.txt
 python manage.py migrate
-python manage.py runserver
+python manage.py runserver 9010
 ```
 Environment variables: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG` (`1` by default, `0` in Docker),
 `DJANGO_ALLOWED_HOSTS` (comma separated), `DJANGO_DATA_DIR` (where `db.sqlite3` lives).
@@ -44,7 +44,7 @@ Environment variables: `DJANGO_SECRET_KEY`, `DJANGO_DEBUG` (`1` by default, `0` 
 **Client** (SvelteKit, `client/`)
 ```
 cd client
-cp .env.example .env      # API_URL=http://127.0.0.1:8000/api (read at runtime, server-side only)
+cp .env.example .env      # API_URL=http://127.0.0.1:9010/api (read at runtime, server-side only)
 npm install
 npm run dev               # npm test runs the exporter tests
 ```
@@ -52,6 +52,8 @@ npm run dev               # npm test runs the exporter tests
 ## Using the editor
 - Add characters in the left panel, then drag one onto the canvas to write a line (a section is created if you drop on empty space).
 - Drag from a line's right handle to another line to connect them, or onto empty space to create the follow-up line.
+- Click the **+** at the bottom of a line to add a **player choice**. Each choice has its own text, id and handle: drag from it to the line it leads to (or onto empty space to create that line). A choice without an arrow ends the dialogue.
+- Every line and choice shows its **id** (generated as `L1`, `C1`, ...). Click an id to change it; ids must be unique, and arrows follow the rename.
 - Double-click a section title to rename it; select a section to resize it. Dragging a line into another section moves it there.
 - `Delete`/`Backspace` removes the selection, `Ctrl+S` saves immediately (saving is otherwise automatic).
 - *Import* loads a Storyliner JSON file; *Export* offers all formats below.
@@ -60,7 +62,8 @@ npm run dev               # npm test runs the exporter tests
 
 How the graph is translated (same for every script format):
 - Lines that simply follow each other are grouped into one **block** (Yarn node, ink knot, Dialogue Manager title, Ren'Py label, Twine passage), named `<Section>_<n>` in reading order.
-- A line with **several outgoing arrows becomes a player choice**: each target line is offered as an option (its text is the option label) and is then spoken.
+- A line with **choices** becomes a player choice: each choice is offered with its text and id (the id is the option's localization key where the format supports it) and jumps to its target, or ends the dialogue if it has none.
+- A line with **several outgoing arrows** also becomes a player choice: each target line is offered as an option (its text is the option label) and is then spoken. On a line with choices, plain arrows are added as extra options.
 - A line with one arrow into a line that is reached from elsewhere becomes a jump; a line without arrows ends the dialogue.
 - **Entry points** are lines without incoming arrows (plus the first line of any loop that nothing leads into). The first one is the start (`Start` node, `start` label, ...).
 - Multi-line text is split into one line of dialogue per text line. Lines without text are skipped in script formats.
@@ -75,11 +78,20 @@ How the graph is translated (same for every script format):
 | Ren'Py script | `.rpy` | Ren'Py | Drop into `game/`; characters are `define`d with their editor color; story starts at `label start`. |
 | Twine (Twee 3) | `.twee` | Twine 2 (Library → Import), Tweego, Harlowe, SugarCube | One passage per block with links for jumps and choices. |
 | CSV table | `.csv` | Unreal DataTable, spreadsheets, localization tools | See row struct below. |
-| Flat JSON graph | `.json` | Any engine / custom code | `{ start, entries, characters, lines: [{ id, section, speakerId, speakerName, text, next }] }` – flat arrays only, works with Unity's `JsonUtility`. |
+| Flat JSON graph | `.json` | Any engine / custom code | `{ start, entries, characters, lines: [{ id, section, speakerId, speakerName, text, next, choices: [{ id, text, next }] }] }` – flat arrays only, works with Unity's `JsonUtility`. |
 
 **Unreal DataTable (CSV):** create a row struct with these fields, then import the CSV as a DataTable using it:
 
 ```cpp
+USTRUCT(BlueprintType)
+struct FStorylinerChoice
+{
+    GENERATED_BODY()
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) FName Id;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) FString Text;
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) FName Next;   // None = ends the dialogue
+};
+
 USTRUCT(BlueprintType)
 struct FStorylinerLine : public FTableRowBase
 {
@@ -89,12 +101,14 @@ struct FStorylinerLine : public FTableRowBase
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FString Speaker;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FText Text;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) TArray<FName> Next;   // several entries = player choice
+    UPROPERTY(EditAnywhere, BlueprintReadOnly) TArray<FStorylinerChoice> Choices;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) bool IsStart;
 };
 ```
 
 ## Storyliner JSON format
 - `next` is always an array of line ids (empty for the last line).
+- `choices` (optional) is an array of `{ "id", "text", "next" }`, where `next` is a single line id or `""` (ends the dialogue). Line and choice ids share one namespace.
 - Positions are `"x,y"`; line positions are relative to their section. Section `size` is `"width,height"`.
 - Unknown keys (e.g. `custom_key`) are preserved when the story is edited.
 

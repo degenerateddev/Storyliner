@@ -159,10 +159,10 @@ describe('exports', () => {
 
 	it('csv and flat json', () => {
 		const csv = exportStory('csv', { story }).content.split('\r\n');
-		expect(csv[0]).toBe('Name,Section,SpeakerId,Speaker,Text,Next,IsStart');
-		expect(csv[1]).toBe('A,First meeting,c-ann,Ann,Are you free tomorrow?,"(""B"",""C"")",True');
+		expect(csv[0]).toBe('Name,Section,SpeakerId,Speaker,Text,Next,Choices,IsStart');
+		expect(csv[1]).toBe('A,First meeting,c-ann,Ann,Are you free tomorrow?,"(""B"",""C"")",(),True');
 		// Rows follow reading order; multi-line text stays in one quoted field.
-		expect(csv[3]).toBe('D,First meeting,c-ann,Ann,"Great.\nSee you then.",(),False');
+		expect(csv[3]).toBe('D,First meeting,c-ann,Ann,"Great.\nSee you then.",(),(),False');
 
 		const graph = JSON.parse(exportStory('graph-json', { story }).content);
 		expect(graph.start).toBe('A');
@@ -173,7 +173,91 @@ describe('exports', () => {
 			speakerId: 'c-ann',
 			speakerName: 'Ann',
 			text: 'Are you free tomorrow?',
-			next: ['B', 'C']
+			next: ['B', 'C'],
+			choices: []
 		});
+	});
+});
+
+describe('explicit choices', () => {
+	// Q offers "Sure" -> R and "Bye" (no target, ends the dialogue); Q also has a plain arrow to S.
+	const withChoices = {
+		name: 'Choices',
+		sections: [
+			{
+				meta: { id: 'S1', type: 'section', position: '0,0', size: '640,400' },
+				label: 'Talk',
+				texts: [
+					{
+						...text('Q', ann, 'Coffee?', ['S'], '24,56'),
+						data: {
+							character: ann,
+							content: 'Coffee?',
+							next: ['S'],
+							choices: [
+								{ id: 'C1', text: 'Sure', next: 'R' },
+								{ id: 'C2', text: 'Bye "now"', next: '' },
+								{ text: 'missing id', next: 'gone' }
+							]
+						}
+					},
+					text('R', bob, 'Two sugars.', [], '300,20'),
+					text('S', bob, 'Tea instead.', [], '300,200')
+				]
+			}
+		]
+	};
+
+	it('normalizes choices and turns them into options', () => {
+		const compiled = compileStory(withChoices);
+		const first = compiled.blocks[0];
+		expect(first.lines.map((l) => l.id)).toEqual(['Q']);
+		expect(first.exit.type).toBe('choice');
+		const options = /** @type {any} */ (first.exit).options;
+		expect(options.map((/** @type {any} */ o) => [o.id, o.label, o.target?.name ?? null])).toEqual([
+			['C1', 'Sure', 'Talk_2'],
+			['C2', 'Bye "now"', null],
+			// Missing id gets one, dangling target is dropped, empty text falls back.
+			['Q_C3', 'missing id', null],
+			[null, 'Tea instead.', 'Talk_3']
+		]);
+	});
+
+	it('ink compiles and ends on a choice without target', () => {
+		const source = exportStory('ink', { story: withChoices }).content;
+		const runtime = new Compiler(source).Compile();
+		expect(runtime.ContinueMaximally()).toBe('Ann: Coffee?\n');
+		expect(runtime.currentChoices.map((c) => c.text)).toEqual([
+			'Sure',
+			'Bye "now"',
+			'missing id',
+			'Tea instead.'
+		]);
+		runtime.ChooseChoiceIndex(1);
+		expect(runtime.ContinueMaximally()).toBe('');
+		expect(runtime.canContinue).toBe(false);
+	});
+
+	it('script formats carry choice ids and endings', () => {
+		const yarn = exportStory('yarn', { story: withChoices }).content;
+		expect(yarn).toContain(
+			'-> Sure #line:C1\n    <<jump Talk_2>>\n-> Bye "now" #line:C2\n    <<stop>>'
+		);
+		const dm = exportStory('dialogue-manager', { story: withChoices }).content;
+		expect(dm).toContain('- Sure [ID:C1] => Talk_2\n- Bye "now" [ID:C2] => END');
+		const rpy = exportStory('renpy', { story: withChoices }).content;
+		expect(rpy).toContain('"Bye \\"now\\"":\n            return');
+		const twee = exportStory('twee', { story: withChoices }).content;
+		expect(twee).toContain('[[Bye "now"->End]]');
+		expect(twee).toContain('\n:: End\n');
+	});
+
+	it('tables list choices', () => {
+		const csv = exportStory('csv', { story: withChoices }).content.split('\r\n');
+		expect(csv[1]).toContain(
+			'"((Id=""C1"",Text=""Sure"",Next=""R""),(Id=""C2"",Text=""Bye \\""now\\"""",Next=""""),'
+		);
+		const graph = JSON.parse(exportStory('graph-json', { story: withChoices }).content);
+		expect(graph.lines[0].choices[0]).toEqual({ id: 'C1', text: 'Sure', next: 'R' });
 	});
 });

@@ -1,4 +1,4 @@
-import { joinLines, lineTag, optionLabel, speakerName, textLines } from '../text';
+import { joinLines, lineTag, speakerName, textLines } from '../text';
 
 /** Words that start a statement instead of a line of dialogue in Dialogue Manager. */
 const KEYWORDS = /^(if|elif|else|while|match|when|do|do!|set|import|using)\b/;
@@ -45,8 +45,9 @@ export function renderDialogueManager(story) {
 		if (exit.type === 'goto') out.push(`=> ${exit.target.name}`);
 		if (exit.type === 'choice') {
 			for (const option of exit.options) {
-				const label = escape(optionLabel(option.line), true).replace(/=>/g, '=\\>');
-				out.push(`- ${label} => ${option.target.name}`);
+				const label = escape(option.label, true).replace(/=>/g, '=\\>');
+				const id = option.id ? ` [ID:${lineTag(option.id)}]` : '';
+				out.push(`- ${label}${id} => ${option.target?.name ?? 'END'}`);
 			}
 		}
 		out.push('');

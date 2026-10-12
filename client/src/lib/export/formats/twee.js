@@ -1,4 +1,6 @@
-import { joinLines, optionLabel, speakerName, textLines } from '../text';
+import { joinLines, speakerName, textLines } from '../text';
+
+const END = 'End';
 
 /** Link text may not contain the link delimiters. */
 const linkText = (/** @type {string} */ text) =>
@@ -43,11 +45,18 @@ export function renderTwee(story, { ifid = crypto.randomUUID() } = {}) {
 		if (exit.type === 'choice') {
 			out.push('');
 			for (const option of exit.options) {
-				out.push(`[[${linkText(optionLabel(option.line))}->${option.target.name}]]`);
+				out.push(`[[${linkText(option.label)}->${option.target?.name ?? END}]]`);
 			}
 		}
 		out.push('');
 	}
+
+	// Choices that end the dialogue link to an empty passage. Block names always end in _<n>,
+	// so this name cannot collide.
+	const endsByChoice = story.blocks.some(
+		({ exit }) => exit.type === 'choice' && exit.options.some((option) => !option.target)
+	);
+	if (endsByChoice) out.push(`:: ${END}`, '');
 
 	return joinLines(out);
 }

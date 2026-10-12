@@ -1,4 +1,4 @@
-import { joinLines, lineTag, optionLabel, speakerName, textLines } from '../text';
+import { joinLines, lineTag, speakerName, textLines } from '../text';
 
 /** Escape everything ink would read as logic, markup, diverts, glue, tags or comments. */
 function escape(/** @type {string} */ text) {
@@ -37,7 +37,7 @@ export function renderInk(story) {
 		if (exit.type === 'goto') out.push(`-> ${exit.target.name}`);
 		if (exit.type === 'choice') {
 			for (const option of exit.options) {
-				out.push(`+ [${escape(optionLabel(option.line))}] -> ${option.target.name}`);
+				out.push(`+ [${escape(option.label)}] -> ${option.target?.name ?? 'END'}`);
 			}
 		}
 		out.push('');
