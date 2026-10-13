@@ -50,6 +50,7 @@ npm run dev               # npm test runs the exporter tests
 ```
 
 ## Using the editor
+- Each account has several **stories**. The start page (click the *Storyliner* logo in the editor to get there) lists them: open, delete, create a new one or import a Storyliner JSON file as a new story. In the editor, the **+** next to the story name creates another story. Characters, dialogues and presets belong to one story.
 - A story can hold several **dialogues** (dialogue graphs): create, rename and delete them in the *Dialogues* list of the sidebar. With more than one, tabs in the top bar switch between them (double-click a tab to rename it).
 - Add characters in the left panel, then drag one onto the canvas to write a line (a section is created if you drop on empty space).
 - Drag from a line's right handle to another line to connect them, or onto empty space to create the follow-up line.

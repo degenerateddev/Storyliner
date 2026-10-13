@@ -1,50 +1,51 @@
 from django.contrib.auth.models import User
+from django.db.models import Count
+from django.shortcuts import get_object_or_404
 from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Character, JSON
-from .serializers import CharacterSerializer, JSONSerializer
+from .models import Character, Project
+from .serializers import CharacterSerializer, ProjectListSerializer, ProjectSerializer
 
 
-class JSONViewSet(viewsets.GenericViewSet):
-    """Each user owns exactly one story: GET returns it, POST creates or replaces it."""
+class ProjectViewSet(viewsets.ModelViewSet):
+    """The stories of a user. The list leaves out the graphs; updates replace the story JSON."""
 
-    serializer_class = JSONSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return JSON.objects.filter(user=self.request.user)
+        projects = Project.objects.filter(user=self.request.user)
+        if self.action == "list":
+            projects = projects.annotate(character_count=Count("characters"))
+        return projects
 
-    def list(self, request):
-        instance = self.get_queryset().first()
-        return Response({"json": instance.json if instance else None})
-
-    def create(self, request):
-        instance = self.get_queryset().first()
-        serializer = self.get_serializer(instance, data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_200_OK if instance else status.HTTP_201_CREATED)
+    def get_serializer_class(self):
+        return ProjectListSerializer if self.action == "list" else ProjectSerializer
 
 
 class CharacterViewSet(viewsets.ModelViewSet):
+    """Characters of one project (`projects/<project_id>/characters/`)."""
+
     serializer_class = CharacterSerializer
     permission_classes = [IsAuthenticated]
     lookup_field = "_id"
-    lookup_value_regex = "[^/]+"
+
+    def get_project(self):
+        return get_object_or_404(Project, pk=self.kwargs["project_id"], user=self.request.user)
 
     def get_queryset(self):
-        return Character.objects.filter(user=self.request.user)
+        return Character.objects.filter(project=self.get_project())
 
     def create(self, request, *args, **kwargs):
         """Upsert by the client-side `_id`."""
-        instance = self.get_queryset().filter(_id=request.data.get("_id")).first()
+        project = self.get_project()
+        instance = Character.objects.filter(project=project, _id=request.data.get("_id")).first()
         serializer = self.get_serializer(instance, data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        serializer.save(project=project)
         return Response(serializer.data, status=status.HTTP_200_OK if instance else status.HTTP_201_CREATED)
 
 

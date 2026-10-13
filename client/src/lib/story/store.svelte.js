@@ -17,25 +17,27 @@ import {
 } from './model';
 
 const CONTEXT_KEY = Symbol('editor');
-const CACHE_KEY = 'storyliner:story';
+/** @param {string | number} projectId */
+const cacheKey = (projectId) => `storyliner:story:${projectId}`;
 const SAVE_DELAY = 800;
 const RETRY_DELAY = 5000;
 
 /** @typedef {'saved' | 'saving' | 'error' | 'offline'} SaveStatus */
 
-function readCache() {
+/** @param {string | number} projectId */
+function readCache(projectId) {
 	try {
-		const cached = localStorage.getItem(CACHE_KEY);
+		const cached = localStorage.getItem(cacheKey(projectId));
 		return cached ? JSON.parse(cached) : null;
 	} catch {
 		return null;
 	}
 }
 
-/** @param {string} serialized */
-function writeCache(serialized) {
+/** @param {string | number} projectId @param {string} serialized */
+function writeCache(projectId, serialized) {
 	try {
-		localStorage.setItem(CACHE_KEY, serialized);
+		localStorage.setItem(cacheKey(projectId), serialized);
 	} catch {
 		// Storage full or unavailable: the server copy is still the source of truth.
 	}
@@ -73,10 +75,12 @@ const idsOf = (graph) =>
 	);
 
 /**
- * Owns the story (with its dialogue graphs) and the characters, and persists them (debounced)
+ * Owns one story (project) with its dialogue graphs and characters, and persists them (debounced)
  * to the API with a localStorage cache for offline use.
  */
 export class EditorStore {
+	/** Server id of the story; characters and saves go to this project. */
+	projectId;
 	/** @type {import('./model').Character[]} */
 	characters = $state([]);
 	/** Top-level story fields except `graphs` (name, presets, custom keys). */
@@ -101,11 +105,15 @@ export class EditorStore {
 	#savedSerialized = '';
 	/** @type {ReturnType<typeof setTimeout> | undefined} */
 	#timer;
-	#inFlight = false;
+	/** @type {Promise<void> | null} */
+	#flushing = null;
 
-	/** @param {{ story: unknown, characters: unknown[] | null, offline: boolean }} data */
-	constructor({ story, characters, offline }) {
-		const initial = offline ? (readCache() ?? story) : story;
+	/**
+	 * @param {{ projectId: string | number, story: unknown, characters: unknown[] | null, offline: boolean }} data
+	 */
+	constructor({ projectId, story, characters, offline }) {
+		this.projectId = projectId;
+		const initial = offline ? (readCache(projectId) ?? story) : story;
 		this.load(initial ?? emptyStory());
 		this.#savedSerialized = offline ? '' : JSON.stringify(this.serialize());
 		this.characters = (characters ?? []).map(normalizeCharacter);
@@ -197,7 +205,7 @@ export class EditorStore {
 
 		this.#latest = story;
 		this.#latestSerialized = serialized;
-		writeCache(serialized);
+		writeCache(this.projectId, serialized);
 
 		clearTimeout(this.#timer);
 		if (serialized === this.#savedSerialized) {
@@ -212,29 +220,34 @@ export class EditorStore {
 		return this.#latestSerialized !== '' && this.#latestSerialized !== this.#savedSerialized;
 	}
 
-	/** Save immediately (also used for Ctrl+S). */
-	async flush() {
+	/**
+	 * Save immediately (also used for Ctrl+S). Resolves once everything is saved or the save
+	 * failed (it is then retried later).
+	 */
+	flush() {
 		clearTimeout(this.#timer);
-		if (this.#inFlight || !this.hasUnsavedChanges) return;
+		this.#flushing ??= this.#save().finally(() => (this.#flushing = null));
+		return this.#flushing;
+	}
 
-		this.#inFlight = true;
-		const serialized = this.#latestSerialized;
-		const result = await api.saveStory(this.#latest);
-		this.#inFlight = false;
-
-		if (result.ok) {
-			this.#savedSerialized = serialized;
-			if (this.hasUnsavedChanges) {
-				this.flush();
-			} else {
-				this.status = 'saved';
-				this.message = '';
+	async #save() {
+		// Changes made while a request is in flight are sent right after it.
+		while (this.hasUnsavedChanges) {
+			const serialized = this.#latestSerialized;
+			const result = await api.saveProject(this.projectId, this.#latest);
+			if (result.status === 404) {
+				this.#fail('error', 'This story was deleted – export it to keep your changes.');
+				return;
 			}
-			return;
+			if (!result.ok) {
+				this.#handleError(result.status, 'Could not save the story.');
+				this.#timer = setTimeout(() => this.flush(), RETRY_DELAY);
+				return;
+			}
+			this.#savedSerialized = serialized;
 		}
-
-		this.#handleError(result.status, 'Could not save the story.');
-		this.#timer = setTimeout(() => this.flush(), RETRY_DELAY);
+		this.status = 'saved';
+		this.message = '';
 	}
 
 	/** @param {string} name @param {string} meta */
@@ -256,7 +269,7 @@ export class EditorStore {
 	/** @param {string} id */
 	async removeCharacter(id) {
 		this.characters = this.characters.filter((c) => c.id !== id);
-		const result = await api.deleteCharacter(id);
+		const result = await api.deleteCharacter(this.projectId, id);
 		// 404: it never reached the server (e.g. created while offline) – nothing to delete.
 		if (!result.ok && result.status !== 404)
 			this.#handleError(result.status, 'Could not delete the character.');
@@ -319,7 +332,7 @@ export class EditorStore {
 
 	/** @param {import('./model').Character} character */
 	async #saveCharacter(character) {
-		const result = await api.saveCharacter($state.snapshot(character));
+		const result = await api.saveCharacter(this.projectId, $state.snapshot(character));
 		if (!result.ok) this.#handleError(result.status, `Could not save “${character.name}”.`);
 	}
 

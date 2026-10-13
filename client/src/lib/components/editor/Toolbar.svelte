@@ -1,4 +1,7 @@
 <script>
+	import { goto } from '$app/navigation';
+	import { resolve } from '$app/paths';
+	import { api } from '$lib/api/client';
 	import Button from '$lib/components/ui/Button.svelte';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { confirm } from '$lib/components/ui/confirm.svelte.js';
@@ -16,6 +19,20 @@
 	let fileInput;
 	let importError = $state('');
 	let presetsOpen = $state(false);
+	let creating = $state(false);
+
+	/** Create an empty story and open it (the current one is saved on the way out). */
+	async function createStory() {
+		creating = true;
+		const result = await api.createProject();
+		creating = false;
+		if (result.ok) {
+			goto(resolve('/projects/[id]', { id: String(result.data.id) }));
+		} else {
+			importError =
+				result.status === 0 ? 'Server unreachable – try again later.' : 'Could not create a story.';
+		}
+	}
 
 	const statusText = $derived(
 		{
@@ -66,14 +83,36 @@
 		<Icon name="panel" />
 	</Button>
 
-	<span class="hidden font-display text-xl text-accent-600 sm:block">Storyliner</span>
+	<a
+		href={resolve('/')}
+		title="All stories"
+		class="flex items-center rounded-md text-accent-600 transition-colors hover:text-accent-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+	>
+		<span class="hidden font-display text-xl sm:block">Storyliner</span>
+		<Icon name="squares" class="size-5 sm:hidden" />
+		<span class="sr-only sm:hidden">All stories</span>
+	</a>
 	<span class="hidden h-6 w-px bg-stone-200 sm:block"></span>
 
-	<input
-		bind:value={editor.info.name}
-		aria-label="Story name"
-		class="h-9 min-w-0 max-w-xs flex-1 rounded-md border-transparent bg-transparent px-2 text-sm font-semibold text-stone-900 hover:border-stone-200 focus:border-accent-500 focus:ring-accent-500"
-	/>
+	<div class="flex min-w-0 max-w-xs flex-1 items-center gap-0.5">
+		<input
+			bind:value={editor.info.name}
+			aria-label="Story name"
+			title="Story name"
+			class="h-9 min-w-0 flex-1 rounded-md border-transparent bg-transparent px-2 text-sm font-semibold text-stone-900 hover:border-stone-200 focus:border-accent-500 focus:ring-accent-500"
+		/>
+		<Button
+			variant="ghost"
+			size="sm"
+			onclick={createStory}
+			disabled={creating}
+			aria-label="New story"
+			title="Create a new story"
+			class="shrink-0 !px-1.5"
+		>
+			<Icon name="plus" class="size-4" />
+		</Button>
+	</div>
 
 	<button
 		type="button"
