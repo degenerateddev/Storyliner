@@ -4,6 +4,8 @@
 	import { confirm } from '$lib/components/ui/confirm.svelte.js';
 	import { getEditor } from '$lib/story/store.svelte.js';
 	import ExportMenu from './ExportMenu.svelte';
+	import GraphTabs from './GraphTabs.svelte';
+	import PresetsDialog from './PresetsDialog.svelte';
 
 	/** @type {{ panelOpen: boolean }} */
 	let { panelOpen = $bindable() } = $props();
@@ -13,6 +15,7 @@
 	/** @type {HTMLInputElement | undefined} */
 	let fileInput;
 	let importError = $state('');
+	let presetsOpen = $state(false);
 
 	const statusText = $derived(
 		{
@@ -36,8 +39,8 @@
 			importError = `“${file.name}” is not valid JSON.`;
 			return;
 		}
-		if (!Array.isArray(story?.sections)) {
-			importError = `“${file.name}” is not a Storyliner story (no "sections").`;
+		if (!Array.isArray(story?.graphs) && !Array.isArray(story?.sections)) {
+			importError = `“${file.name}” is not a Storyliner story (no "graphs" or "sections").`;
 			return;
 		}
 		importError = '';
@@ -57,7 +60,7 @@
 		variant="ghost"
 		size="sm"
 		onclick={() => (panelOpen = !panelOpen)}
-		aria-label={panelOpen ? 'Hide characters' : 'Show characters'}
+		aria-label={panelOpen ? 'Hide sidebar' : 'Show sidebar'}
 		aria-pressed={panelOpen}
 	>
 		<Icon name="panel" />
@@ -120,6 +123,14 @@
 		>
 			<Icon name="upload" class="size-4" /> <span class="hidden lg:inline">Import</span>
 		</Button>
+		<Button
+			variant="ghost"
+			size="sm"
+			onclick={() => (presetsOpen = true)}
+			title="Custom keys for choices and nodes (conditions, effects, moods, ...)"
+		>
+			<Icon name="tag" class="size-4" /> <span class="hidden lg:inline">Presets</span>
+		</Button>
 		<ExportMenu />
 		<form method="POST" action="/logout">
 			<Button type="submit" variant="ghost" size="sm" aria-label="Log out" title="Log out">
@@ -128,3 +139,9 @@
 		</form>
 	</div>
 </header>
+
+{#if editor.graphs.length > 1}
+	<GraphTabs />
+{/if}
+
+<PresetsDialog bind:open={presetsOpen} />

@@ -1,4 +1,5 @@
 <script>
+	import { untrack } from 'svelte';
 	import { SvelteFlowProvider } from '@xyflow/svelte';
 	import '@xyflow/svelte/dist/style.css';
 	import Canvas from '$lib/components/editor/Canvas.svelte';
@@ -13,6 +14,12 @@
 	const editor = setEditor(new EditorStore(data));
 
 	let panelOpen = $state(true);
+
+	// Every change (canvas, graphs, story name, presets) is handed to the store, which debounces the save.
+	$effect(() => {
+		const story = editor.serialize();
+		untrack(() => editor.queueSave(story));
+	});
 
 	/** @param {KeyboardEvent} event */
 	function onKeydown(event) {
@@ -43,7 +50,7 @@
 				<CharacterPanel />
 			{/if}
 			<main class="relative min-w-0 flex-1">
-				{#key editor.revision}
+				{#key `${editor.revision}:${editor.activeGraphId}`}
 					<Canvas />
 				{/key}
 			</main>

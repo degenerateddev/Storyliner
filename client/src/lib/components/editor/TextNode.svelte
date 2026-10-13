@@ -5,6 +5,8 @@
 	import { characterColor } from '$lib/story/characters';
 	import Icon from '$lib/components/ui/Icon.svelte';
 	import { getCanvasActions } from './canvas-actions';
+	import CustomFields from './CustomFields.svelte';
+	import { commitId, idKeydown } from './id-input';
 
 	/** @type {{ id: string, data: any, selected?: boolean }} */
 	let { id, data, selected = false } = $props();
@@ -14,11 +16,29 @@
 	const updateNodeInternals = useUpdateNodeInternals();
 	const actions = getCanvasActions();
 
-	/** @type {{ id: string, text: string }[]} */
+	/** @typedef {import('$lib/story/model').Field} Field */
+	/** @type {{ id: string, text: string, fields?: Field[] }[]} */
 	const choices = $derived(data.choices ?? []);
+	/** Custom keys of the line itself. @type {Field[]} */
+	const fields = $derived(data.fields ?? []);
 
-	// Choice handles come and go with their rows, so Svelte Flow has to re-measure them.
-	const handleKey = $derived(JSON.stringify(choices.map((choice) => choice.id)));
+	/** Choices whose custom keys are shown. */
+	let expanded = $state(/** @type {string[]} */ ([]));
+	/** Whether the line's own custom keys are shown. */
+	let lineKeysOpen = $state(false);
+
+	// Choice handles come and go with their rows (and move when keys are shown or added),
+	// so Svelte Flow has to re-measure them.
+	const handleKey = $derived(
+		JSON.stringify([
+			lineKeysOpen && fields.map((field) => [field.key, field.type === 'dropdown']),
+			choices.map((choice) => [
+				choice.id,
+				expanded.includes(choice.id) &&
+					(choice.fields ?? []).map((field) => [field.key, field.type === 'dropdown'])
+			])
+		])
+	);
 	$effect(() => {
 		void handleKey;
 		tick().then(() => updateNodeInternals(id));
@@ -35,40 +55,19 @@
 		)?.focus();
 	}
 
-	/** @param {string} choiceId @param {string} text */
-	const setChoiceText = (choiceId, text) =>
+	/** @param {string} choiceId @param {Record<string, unknown>} changes */
+	const updateChoice = (choiceId, changes) =>
 		updateNodeData(id, {
-			choices: choices.map((choice) => (choice.id === choiceId ? { ...choice, text } : choice))
+			choices: choices.map((choice) =>
+				choice.id === choiceId ? { ...choice, ...changes } : choice
+			)
 		});
 
-	/**
-	 * Commit an edited id; an empty or duplicate id is rejected and the old one restored.
-	 * @param {HTMLInputElement} input
-	 * @param {(value: string) => boolean} rename
-	 * @param {string} current
-	 */
-	function commitId(input, rename, current) {
-		if (rename(input.value)) return;
-		input.value = current;
-		input.animate(
-			[
-				{ transform: 'translateX(0)' },
-				{ transform: 'translateX(-3px)' },
-				{ transform: 'translateX(3px)' },
-				{ transform: 'translateX(0)' }
-			],
-			{ duration: 200 }
-		);
-	}
-
-	/** @param {KeyboardEvent & { currentTarget: HTMLInputElement }} event @param {string} current */
-	function idKeydown(event, current) {
-		if (event.key === 'Enter') event.currentTarget.blur();
-		if (event.key === 'Escape') {
-			event.currentTarget.value = current;
-			event.currentTarget.blur();
-		}
-	}
+	/** @param {string} choiceId */
+	const toggleFields = (choiceId) =>
+		(expanded = expanded.includes(choiceId)
+			? expanded.filter((other) => other !== choiceId)
+			: [...expanded, choiceId]);
 
 	const characterId = $derived(data.character?.id ?? '');
 	const known = $derived(editor.character(characterId));
@@ -114,6 +113,20 @@
 		</select>
 		<span class="-ml-1 text-[10px] text-white/80" aria-hidden="true">▾</span>
 		<span class="flex-1"></span>
+		<button
+			type="button"
+			onclick={() => (lineKeysOpen = !lineKeysOpen)}
+			title={lineKeysOpen ? 'Hide custom keys' : 'Custom keys of this line'}
+			aria-label="Custom keys of the line"
+			aria-expanded={lineKeysOpen}
+			class="nodrag flex shrink-0 items-center gap-0.5 rounded px-0.5 py-0.5 text-[10px] font-medium text-white hover:bg-black/15 {lineKeysOpen ||
+			fields.length
+				? ''
+				: 'opacity-60'}"
+		>
+			<Icon name="tag" class="size-3.5" />
+			{#if fields.length}{fields.length}{/if}
+		</button>
 		<input
 			value={id}
 			onblur={(event) =>
@@ -138,8 +151,17 @@
 				: 'rounded-b-lg'}"
 		></textarea>
 		<Handle type="target" position={Position.Left} />
-		<Handle type="source" position={Position.Right} />
+		<!-- With choices, the dialogue only continues through them. -->
+		{#if !choices.length}
+			<Handle type="source" position={Position.Right} />
+		{/if}
 	</div>
+
+	{#if lineKeysOpen}
+		<div class={choices.length ? 'pb-2' : 'pb-4'}>
+			<CustomFields kind="node" {fields} onchange={(fields) => updateNodeData(id, { fields })} />
+		</div>
+	{/if}
 
 	{#if choices.length}
 		<div bind:this={choiceList} class="border-t border-stone-200 pb-3">
@@ -147,6 +169,8 @@
 				Choices
 			</p>
 			{#each choices as choice (choice.id)}
+				{@const keyCount = (choice.fields ?? []).length}
+				{@const open = expanded.includes(choice.id)}
 				<div class="relative flex items-center gap-1.5 py-1 pl-3 pr-4">
 					<input
 						value={choice.id}
@@ -165,7 +189,7 @@
 					<input
 						data-choice={choice.id}
 						value={choice.text}
-						oninput={(event) => setChoiceText(choice.id, event.currentTarget.value)}
+						oninput={(event) => updateChoice(choice.id, { text: event.currentTarget.value })}
 						onkeydown={(event) => {
 							if (event.key === 'Enter') addChoice();
 						}}
@@ -173,6 +197,20 @@
 						aria-label="Choice text"
 						class="nodrag min-w-0 flex-1 rounded border-0 bg-transparent px-1 py-0.5 text-sm text-stone-800 placeholder:text-stone-400 focus:bg-stone-50 focus:ring-1 focus:ring-accent-500"
 					/>
+					<button
+						type="button"
+						onclick={() => toggleFields(choice.id)}
+						title={open ? 'Hide custom keys' : 'Custom keys (conditions, effects, ...)'}
+						aria-label="Custom keys"
+						aria-expanded={open}
+						class="nodrag flex shrink-0 items-center gap-0.5 rounded px-0.5 py-0.5 text-[10px] font-medium {open ||
+						keyCount
+							? 'text-accent-600'
+							: 'text-stone-400'} hover:bg-stone-100 hover:text-accent-600"
+					>
+						<Icon name="tag" class="size-3.5" />
+						{#if keyCount}{keyCount}{/if}
+					</button>
 					<button
 						type="button"
 						onclick={() => actions.removeChoice(id, choice.id)}
@@ -184,6 +222,13 @@
 					</button>
 					<Handle type="source" position={Position.Right} id={choice.id} />
 				</div>
+				{#if open}
+					<CustomFields
+						kind="choice"
+						fields={choice.fields ?? []}
+						onchange={(fields) => updateChoice(choice.id, { fields })}
+					/>
+				{/if}
 			{/each}
 		</div>
 	{/if}

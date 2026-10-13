@@ -1,4 +1,4 @@
-import { normalizeStory, parsePair } from '$lib/story/model';
+import { LINE_KEYS, normalizeStory, parsePair, splitFields } from '$lib/story/model';
 import { identifier, optionLabel, uniqueNamer } from './text';
 
 /**
@@ -10,6 +10,7 @@ import { identifier, optionLabel, uniqueNamer } from './text';
  *   text: string,
  *   next: string[],
  *   choices: { id: string, text: string, next: string }[],
+ *   fields: Record<string, import('$lib/story/model').FieldValue>,
  *   position: { x: number, y: number }
  * }} Line
  * @typedef {{
@@ -39,11 +40,13 @@ import { identifier, optionLabel, uniqueNamer } from './text';
  *   or with several `next` links (each target becomes an option labelled with its text).
  *   Plain links of a line with explicit choices are offered as additional options.
  * Every target of a jump or choice starts its own block, so all formats can express it.
+ * All dialogue graphs of the story are compiled together (the editor exports one graph at a time).
  * @param {any} rawStory - Storyliner story JSON
  * @returns {CompiledStory}
  */
 export function compileStory(rawStory) {
-	const { sections, ...info } = normalizeStory(rawStory);
+	const { graphs, ...info } = normalizeStory(rawStory);
+	const sections = graphs.flatMap((/** @type {any} */ graph) => graph.sections);
 
 	/** @type {Line[]} */
 	const lines = [];
@@ -65,6 +68,7 @@ export function compileStory(rawStory) {
 				text: text.data.content,
 				next: text.data.next,
 				choices: text.data.choices,
+				fields: splitFields(text.data, LINE_KEYS).values,
 				position: { x: sx + at[0], y: sy + at[1] }
 			});
 		}

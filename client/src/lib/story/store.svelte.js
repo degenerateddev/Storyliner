@@ -3,7 +3,18 @@ import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { api } from '$lib/api/client';
 import { exportStory } from '$lib/export';
-import { emptyStory, newId, normalizeCharacter, normalizeStory } from './model';
+import {
+	emptyGraph,
+	emptyStory,
+	FIELD_KINDS,
+	GRAPH_PREFIX,
+	graphName,
+	newId,
+	normalizeCharacter,
+	normalizePresets,
+	normalizeStory,
+	readableId
+} from './model';
 
 const CONTEXT_KEY = Symbol('editor');
 const CACHE_KEY = 'storyliner:story';
@@ -52,18 +63,33 @@ const slug = (name) =>
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-|-$/g, '') || 'story';
 
+/** Ids of all lines and choices of a graph. @param {any} graph @returns {string[]} */
+const idsOf = (graph) =>
+	graph.sections.flatMap((/** @type {any} */ section) =>
+		section.texts.flatMap((/** @type {any} */ text) => [
+			text.meta.id,
+			...text.data.choices.map((/** @type {any} */ choice) => choice.id)
+		])
+	);
+
 /**
- * Owns the story and the characters, and persists them (debounced) to the API
- * with a localStorage cache for offline use.
+ * Owns the story (with its dialogue graphs) and the characters, and persists them (debounced)
+ * to the API with a localStorage cache for offline use.
  */
 export class EditorStore {
 	/** @type {import('./model').Character[]} */
 	characters = $state([]);
-	/** Top-level story fields except `sections` (name, custom keys). */
+	/** Top-level story fields except `graphs` (name, presets, custom keys). */
 	info = $state(/** @type {Record<string, any>} */ ({ name: 'Untitled story' }));
-	/** Story the canvas is built from; replaced on import. */
-	story = $state.raw(/** @type {any} */ (emptyStory()));
-	/** Bumped whenever `story` is replaced so the canvas rebuilds. */
+	/**
+	 * Dialogue graphs `{ id, name, sections }`. The canvas of the active graph writes its
+	 * sections back; the others stay as they are.
+	 * @type {any[]}
+	 */
+	graphs = $state.raw([]);
+	/** Graph shown on the canvas. */
+	activeGraphId = $state('');
+	/** Bumped whenever the story is replaced so the canvas rebuilds. */
 	revision = $state(0);
 	/** @type {SaveStatus} */
 	status = $state('saved');
@@ -81,21 +107,90 @@ export class EditorStore {
 	constructor({ story, characters, offline }) {
 		const initial = offline ? (readCache() ?? story) : story;
 		this.load(initial ?? emptyStory());
-		this.#savedSerialized = offline ? '' : JSON.stringify(this.story);
+		this.#savedSerialized = offline ? '' : JSON.stringify(this.serialize());
 		this.characters = (characters ?? []).map(normalizeCharacter);
 		if (offline) this.#fail('offline', 'Server unreachable – working from the local copy.');
 	}
 
 	/** @param {unknown} raw */
 	load(raw) {
-		const story = normalizeStory(raw);
-		const { sections: _sections, ...info } = story;
-		this.story = story;
+		const { graphs, ...info } = normalizeStory(raw);
+		this.graphs = graphs;
 		this.info = info;
+		this.activeGraphId = graphs[0].id;
 		this.revision++;
 	}
 
-	/** Called by the canvas whenever the graph changes. Cheap when nothing changed. */
+	/** The whole story as saved. Reading it tracks every change (for the save effect). */
+	serialize() {
+		return { ...$state.snapshot(this.info), graphs: this.graphs };
+	}
+
+	/** The graph shown on the canvas. */
+	get graph() {
+		return this.graphs.find((graph) => graph.id === this.activeGraphId) ?? this.graphs[0];
+	}
+
+	/** @param {string} id */
+	selectGraph(id) {
+		if (this.graphs.some((graph) => graph.id === id)) this.activeGraphId = id;
+	}
+
+	/** Add an empty graph and show it. */
+	addGraph() {
+		const ids = this.graphs.map((graph) => graph.id);
+		let n = this.graphs.length + 1;
+		while (this.graphs.some((graph) => graph.name === graphName(n))) n++;
+		const graph = emptyGraph(readableId(GRAPH_PREFIX, ids), graphName(n));
+		this.graphs = [...this.graphs, graph];
+		this.activeGraphId = graph.id;
+		return graph;
+	}
+
+	/** @param {string} id @param {string} name */
+	renameGraph(id, name) {
+		const trimmed = name.trim();
+		if (!trimmed) return;
+		this.graphs = this.graphs.map((graph) =>
+			graph.id === id ? { ...graph, name: trimmed } : graph
+		);
+	}
+
+	/** The last graph cannot be removed. @param {string} id */
+	removeGraph(id) {
+		if (this.graphs.length < 2) return;
+		const index = this.graphs.findIndex((graph) => graph.id === id);
+		this.graphs = this.graphs.filter((graph) => graph.id !== id);
+		if (this.activeGraphId === id) this.activeGraphId = this.graphs[Math.max(0, index - 1)].id;
+	}
+
+	/**
+	 * Called by the canvas whenever its graph changes.
+	 * @param {string} id
+	 * @param {any[]} sections
+	 */
+	setSections(id, sections) {
+		this.graphs = this.graphs.map((graph) => (graph.id === id ? { ...graph, sections } : graph));
+	}
+
+	/**
+	 * Line and choice ids of all other graphs: ids are unique across the story, so every id
+	 * works as a localization key.
+	 * @param {string} id
+	 */
+	idsOutside(id) {
+		return this.graphs.filter((graph) => graph.id !== id).flatMap(idsOf);
+	}
+
+	/** @param {any} graph */
+	linesIn(graph) {
+		return graph.sections.reduce(
+			(/** @type {number} */ sum, /** @type {any} */ section) => sum + section.texts.length,
+			0
+		);
+	}
+
+	/** Called whenever the story changes. Cheap when nothing changed. */
 	queueSave(/** @type {unknown} */ story) {
 		const serialized = JSON.stringify(story);
 		if (serialized === this.#latestSerialized) return;
@@ -172,16 +267,49 @@ export class EditorStore {
 		return this.characters.find((c) => c.id === id);
 	}
 
-	/** @param {string} formatId - see EXPORT_FORMATS */
+	/**
+	 * Presets of custom keys for choices or nodes (stored with the story).
+	 * @param {import('./model').FieldKind} kind
+	 * @returns {import('./model').Preset[]}
+	 */
+	presets(kind) {
+		return this.info[FIELD_KINDS[kind].presetsKey] ?? [];
+	}
+
+	/**
+	 * The preset new choices (nodes) start with.
+	 * @param {import('./model').FieldKind} kind
+	 */
+	defaultPreset(kind) {
+		return this.presets(kind).find((preset) => preset.default);
+	}
+
+	/**
+	 * Replaced as a whole, so the save effect notices the change.
+	 * @param {import('./model').FieldKind} kind
+	 * @param {unknown} presets
+	 */
+	setPresets(kind, presets) {
+		const { presetsKey, reserved } = FIELD_KINDS[kind];
+		this.info[presetsKey] = normalizePresets(presets, reserved);
+	}
+
+	/**
+	 * The Storyliner JSON backup holds every graph; the engine formats export the graph
+	 * on the canvas.
+	 * @param {string} formatId - see EXPORT_FORMATS
+	 */
 	exportAs(formatId) {
 		// Twine needs a stable story id; it is stored with the story so re-exports keep it.
 		if (formatId === 'twee' && !this.info.ifid) this.info.ifid = newId().toUpperCase();
-		const story = {
-			.../** @type {object} */ (this.#latest ?? this.story),
-			...$state.snapshot(this.info)
-		};
+		const full = formatId === 'storyliner';
+		const story = { ...$state.snapshot(this.info), graphs: full ? this.graphs : [this.graph] };
+		const name =
+			full || this.graphs.length < 2
+				? slug(this.info.name)
+				: `${slug(this.info.name)}-${slug(this.graph.name)}`;
 		const { content, extension, mime } = exportStory(formatId, { story });
-		download(`${slug(this.info.name)}.${extension}`, content, mime);
+		download(`${name}.${extension}`, content, mime);
 	}
 
 	exportCharacters() {

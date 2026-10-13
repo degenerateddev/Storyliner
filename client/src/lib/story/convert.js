@@ -1,5 +1,18 @@
 import { MarkerType } from '@xyflow/svelte';
-import { formatPair, normalizeCharacter, parsePair, SECTION_SIZE } from './model';
+import {
+	CHOICE_KEYS,
+	CHOICE_PREFIX,
+	formatPair,
+	fromFields,
+	LINE_KEYS,
+	normalizeCharacter,
+	parsePair,
+	readableId,
+	SECTION_SIZE,
+	splitFields,
+	toFields,
+	withOptions
+} from './model';
 
 export const EDGE_DEFAULTS = {
 	type: 'smoothstep',
@@ -23,17 +36,30 @@ export const makeEdge = (source, target, sourceHandle = null) => ({
 const choiceKey = (line, choice) => JSON.stringify([line, choice]);
 
 /**
- * Story JSON -> Svelte Flow nodes/edges. Sections always precede their texts.
- * `data.raw` keeps the original object so unknown keys survive a save.
- * @param {any} story - a normalized story
+ * Dialogue graph -> Svelte Flow nodes/edges. Sections always precede their texts.
+ * `data.raw` keeps the original object so unknown keys survive a save; the editable
+ * custom keys of a line or choice live in its `fields`.
+ * A line with choices has no plain outgoing handle, so its plain arrows become extra choices
+ * (without text, like the option the export would make of them).
+ * @param {{ sections: any[] }} graph - a graph of a normalized story
+ * @param {Iterable<string>} [reserved] - ids used elsewhere (other graphs), not to be generated
  */
-export function storyToFlow(story) {
+export function storyToFlow(graph, reserved = []) {
 	/** @type {any[]} */
 	const nodes = [];
 	/** @type {any[]} */
 	const edges = [];
+	const taken = new Set([
+		...reserved,
+		...graph.sections.flatMap((/** @type {any} */ section) =>
+			section.texts.flatMap((/** @type {any} */ text) => [
+				text.meta.id,
+				...text.data.choices.map((/** @type {any} */ choice) => choice.id)
+			])
+		)
+	]);
 
-	for (const { texts, ...section } of story.sections) {
+	for (const { texts, ...section } of graph.sections) {
 		const [x, y] = parsePair(section.meta.position, [0, 0]);
 		const [width, height] = parsePair(section.meta.size, [SECTION_SIZE.width, SECTION_SIZE.height]);
 		nodes.push({
@@ -47,6 +73,18 @@ export function storyToFlow(story) {
 
 		for (const text of texts) {
 			const [tx, ty] = parsePair(text.meta.position, [0, 0]);
+			/** @type {any[]} */
+			const choices = [...text.data.choices];
+			const next = choices.length ? [] : text.data.next;
+			if (choices.length) {
+				for (const target of text.data.next) {
+					const id = readableId(CHOICE_PREFIX, taken);
+					taken.add(id);
+					choices.push({ id, text: '', next: target });
+				}
+			}
+
+			const line = splitFields(text.data, LINE_KEYS);
 			nodes.push({
 				id: text.meta.id,
 				type: 'text',
@@ -55,16 +93,21 @@ export function storyToFlow(story) {
 				data: {
 					character: text.data.character,
 					content: text.data.content,
-					choices: text.data.choices.map((/** @type {any} */ choice) => ({
-						id: choice.id,
-						text: choice.text,
-						raw: choice
-					})),
-					raw: text
+					fields: toFields(line.values, text.meta.options),
+					choices: choices.map((choice) => {
+						const { values, rest } = splitFields(choice, CHOICE_KEYS);
+						return {
+							id: choice.id,
+							text: choice.text,
+							fields: toFields(values, choice.meta?.options),
+							raw: rest
+						};
+					}),
+					raw: { ...text, data: line.rest }
 				}
 			});
-			for (const target of text.data.next) edges.push(makeEdge(text.meta.id, target));
-			for (const choice of text.data.choices) {
+			for (const target of next) edges.push(makeEdge(text.meta.id, target));
+			for (const choice of choices) {
 				if (choice.next) edges.push(makeEdge(text.meta.id, choice.next, choice.id));
 			}
 		}
@@ -74,14 +117,14 @@ export function storyToFlow(story) {
 }
 
 /**
- * Svelte Flow nodes/edges -> story JSON. The canvas is the single source of truth while
+ * Svelte Flow nodes/edges -> dialogue graph JSON. The canvas is the single source of truth while
  * editing, so positions, sizes and `next` links can never drift out of sync.
  * @param {any[]} nodes
  * @param {any[]} edges
  * @param {import('./model').Character[]} characters - current character list (names may have changed)
- * @param {Record<string, unknown>} info - top-level story fields (name, ...)
+ * @param {Record<string, unknown>} [info] - other fields of the graph (id, name, ...)
  */
-export function flowToStory(nodes, edges, characters, info) {
+export function flowToStory(nodes, edges, characters, info = {}) {
 	const charactersById = new Map(characters.map((c) => [c.id, c]));
 
 	/** Plain arrows, keyed by source line. @type {Map<string, string[]>} */
@@ -128,26 +171,39 @@ export function flowToStory(nodes, edges, characters, info) {
 			? normalizeCharacter(charactersById.get(node.data.character.id) ?? node.data.character)
 			: null;
 
+		const line = fromFields(node.data.fields ?? []);
+
 		section.texts.push({
 			...raw,
-			meta: {
-				...raw.meta,
-				id: node.id,
-				type: 'text',
-				parentId: node.parentId,
-				position: formatPair(node.position.x, node.position.y)
-			},
+			meta: withOptions(
+				{
+					...raw.meta,
+					id: node.id,
+					type: 'text',
+					parentId: node.parentId,
+					position: formatPair(node.position.x, node.position.y)
+				},
+				line.options
+			),
 			data: {
 				...raw.data,
+				...line.values,
 				character,
 				content: node.data.content ?? '',
 				next: nextBySource.get(node.id) ?? [],
-				choices: (node.data.choices ?? []).map((/** @type {any} */ choice) => ({
-					...choice.raw,
-					id: choice.id,
-					text: choice.text ?? '',
-					next: nextByChoice.get(choiceKey(node.id, choice.id)) ?? ''
-				}))
+				choices: (node.data.choices ?? []).map((/** @type {any} */ choice) => {
+					const { meta: oldMeta, ...rest } = choice.raw ?? {};
+					const own = fromFields(choice.fields ?? []);
+					const meta = withOptions(oldMeta, own.options);
+					return {
+						...rest,
+						...own.values,
+						...(Object.keys(meta).length ? { meta } : {}),
+						id: choice.id,
+						text: choice.text ?? '',
+						next: nextByChoice.get(choiceKey(node.id, choice.id)) ?? ''
+					};
+				})
 			}
 		});
 	}

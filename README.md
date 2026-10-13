@@ -50,13 +50,16 @@ npm run dev               # npm test runs the exporter tests
 ```
 
 ## Using the editor
+- A story can hold several **dialogues** (dialogue graphs): create, rename and delete them in the *Dialogues* list of the sidebar. With more than one, tabs in the top bar switch between them (double-click a tab to rename it).
 - Add characters in the left panel, then drag one onto the canvas to write a line (a section is created if you drop on empty space).
 - Drag from a line's right handle to another line to connect them, or onto empty space to create the follow-up line.
-- Click the **+** at the bottom of a line to add a **player choice**. Each choice has its own text, id and handle: drag from it to the line it leads to (or onto empty space to create that line). A choice without an arrow ends the dialogue.
-- Every line and choice shows its **id** (generated as `L1`, `C1`, ...). Click an id to change it; ids must be unique, and arrows follow the rename.
+- Click the **+** at the bottom of a line to add a **player choice**. Each choice has its own text, id and handle: drag from it to the line it leads to (or onto empty space to create that line). A choice without an arrow ends the dialogue. A line with choices continues only through them, so its plain right handle disappears (existing arrows move onto choices).
+- Click the **tag** button on a choice (or in a line's header) to give it **custom keys** – e.g. `condition: "strength >= 5"` to lock a choice behind a stat, or a `mood` on a line. Each key is text, a number, yes/no or a **dropdown** with its own options (click the pencil next to a dropdown to edit them, comma separated).
+- **Presets** (toolbar) are named sets of custom keys with default values, for choices and for nodes (lines). Apply one from a key list; the preset marked *Default* is added to every new choice / node.
+- Every line and choice shows its **id** (generated as `L1`, `C1`, ...). Click an id to change it; ids must be unique across all dialogues, and arrows follow the rename.
 - Double-click a section title to rename it; select a section to resize it. Dragging a line into another section moves it there.
 - `Delete`/`Backspace` removes the selection, `Ctrl+S` saves immediately (saving is otherwise automatic).
-- *Import* loads a Storyliner JSON file; *Export* offers all formats below.
+- *Import* loads a Storyliner JSON file; *Export* offers all formats below. The Storyliner JSON backup holds every dialogue; the engine formats export the dialogue that is open.
 
 ## Exporting to game engines
 
@@ -77,8 +80,8 @@ How the graph is translated (same for every script format):
 | Dialogue Manager | `.dialogue` | Godot 4 (Dialogue Manager 3) | Start title `start`, `[ID:...]` static translation keys. |
 | Ren'Py script | `.rpy` | Ren'Py | Drop into `game/`; characters are `define`d with their editor color; story starts at `label start`. |
 | Twine (Twee 3) | `.twee` | Twine 2 (Library → Import), Tweego, Harlowe, SugarCube | One passage per block with links for jumps and choices. |
-| CSV table | `.csv` | Unreal DataTable, spreadsheets, localization tools | See row struct below. |
-| Flat JSON graph | `.json` | Any engine / custom code | `{ start, entries, characters, lines: [{ id, section, speakerId, speakerName, text, next, choices: [{ id, text, next }] }] }` – flat arrays only, works with Unity's `JsonUtility`. |
+| CSV table | `.csv` | Unreal DataTable, spreadsheets, localization tools | See row struct below; custom node keys become extra columns after `IsStart`. |
+| Flat JSON graph | `.json` | Any engine / custom code | `{ start, entries, characters, lines: [{ ...custom node keys, id, section, speakerId, speakerName, text, next, choices: [{ id, text, next, ...custom keys }] }] }` – flat arrays only, works with Unity's `JsonUtility`. |
 
 **Unreal DataTable (CSV):** create a row struct with these fields, then import the CSV as a DataTable using it:
 
@@ -90,6 +93,8 @@ struct FStorylinerChoice
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FName Id;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FString Text;
     UPROPERTY(EditAnywhere, BlueprintReadOnly) FName Next;   // None = ends the dialogue
+    // Custom choice keys are exported as extra properties – add one per key, e.g.:
+    // UPROPERTY(EditAnywhere, BlueprintReadOnly) FString condition;
 };
 
 USTRUCT(BlueprintType)
@@ -107,62 +112,71 @@ struct FStorylinerLine : public FTableRowBase
 ```
 
 ## Storyliner JSON format
-- `next` is always an array of line ids (empty for the last line).
-- `choices` (optional) is an array of `{ "id", "text", "next" }`, where `next` is a single line id or `""` (ends the dialogue). Line and choice ids share one namespace.
+- A story has `graphs`: one `{ "id", "name", "sections" }` per dialogue. Files with top-level `sections` (older format) are read as a single dialogue.
+- `next` is always an array of line ids (empty for the last line) within the same dialogue.
+- `choices` (optional) is an array of `{ "id", "text", "next" }`, where `next` is a single line id or `""` (ends the dialogue). Line and choice ids share one namespace. Any other plain key (string, number, boolean) on a choice, or in a line's `data` besides `character`, `content`, `next` and `choices`, is a custom key.
+- A custom key with dropdown options lists them in `meta.options` of its choice or line: `"meta": { "options": { "mood": ["happy", "sad"] } }`. The key itself holds the selected value.
+- `choicePresets` and `nodePresets` (optional) are arrays of `{ "id", "name", "default", "fields": [{ "key", "type": "text" | "number" | "boolean" | "dropdown", "value", "options"? }] }`.
 - Positions are `"x,y"`; line positions are relative to their section. Section `size` is `"width,height"`.
 - Unknown keys (e.g. `custom_key`) are preserved when the story is edited.
 
 ```json
 {
     "name": "First Level",
-    "sections": [
+    "graphs": [
         {
-            "meta": {
-                "id": "S0",
-                "position": "0,0",
-                "type": "section",
-                "custom_key": "Custom data",
-                "size": "640,400"
-            },
-            "label": "First Section",
-            "texts": [
+            "id": "D1",
+            "name": "Intro",
+            "sections": [
                 {
                     "meta": {
-                        "id": "0",
-                        "position": "24,56",
-                        "type": "text",
-                        "parentId": "S0",
-                        "custom_key": "Custom data"
+                        "id": "S0",
+                        "position": "0,0",
+                        "type": "section",
+                        "custom_key": "Custom data",
+                        "size": "640,400"
                     },
-                    "data": {
-                        "character": {
-                            "id": "characterId",
-                            "name": "Character Name",
-                            "meta": ""
+                    "label": "First Section",
+                    "texts": [
+                        {
+                            "meta": {
+                                "id": "0",
+                                "position": "24,56",
+                                "type": "text",
+                                "parentId": "S0",
+                                "custom_key": "Custom data"
+                            },
+                            "data": {
+                                "character": {
+                                    "id": "characterId",
+                                    "name": "Character Name",
+                                    "meta": ""
+                                },
+                                "content": "Are you free tomorrow?",
+                                "next": [
+                                    "1"
+                                ]
+                            }
                         },
-                        "content": "Are you free tomorrow?",
-                        "next": [
-                            "1"
-                        ]
-                    }
-                },
-                {
-                    "meta": {
-                        "id": "1",
-                        "position": "320,56",
-                        "type": "text",
-                        "parentId": "S0",
-                        "custom_key": "Custom data"
-                    },
-                    "data": {
-                        "character": {
-                            "id": "characterId",
-                            "name": "Character Name",
-                            "meta": ""
-                        },
-                        "content": "Oh, okay.",
-                        "next": []
-                    }
+                        {
+                            "meta": {
+                                "id": "1",
+                                "position": "320,56",
+                                "type": "text",
+                                "parentId": "S0",
+                                "custom_key": "Custom data"
+                            },
+                            "data": {
+                                "character": {
+                                    "id": "characterId",
+                                    "name": "Character Name",
+                                    "meta": ""
+                                },
+                                "content": "Oh, okay.",
+                                "next": []
+                            }
+                        }
+                    ]
                 }
             ]
         }

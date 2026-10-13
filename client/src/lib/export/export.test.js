@@ -260,4 +260,66 @@ describe('explicit choices', () => {
 		const graph = JSON.parse(exportStory('graph-json', { story: withChoices }).content);
 		expect(graph.lines[0].choices[0]).toEqual({ id: 'C1', text: 'Sure', next: 'R' });
 	});
+
+	it('tables carry custom choice keys', () => {
+		const withKeys = /** @type {any} */ (structuredClone(withChoices));
+		Object.assign(withKeys.sections[0].texts[0].data.choices[0], {
+			condition: 'str >= 5',
+			cost: 2,
+			once: true,
+			nested: { ignored: true }
+		});
+		const csv = exportStory('csv', { story: withKeys }).content.split('\r\n');
+		expect(csv[1]).toContain('Next=""R"",condition=""str >= 5"",cost=2,once=True),(Id=""C2""');
+		const graph = JSON.parse(exportStory('graph-json', { story: withKeys }).content);
+		expect(graph.lines[0].choices[0]).toEqual({
+			id: 'C1',
+			text: 'Sure',
+			next: 'R',
+			condition: 'str >= 5',
+			cost: 2,
+			once: true
+		});
+	});
+
+	it('tables carry custom node keys, without dropdown metadata', () => {
+		const withKeys = /** @type {any} */ (structuredClone(withChoices));
+		const first = withKeys.sections[0].texts[0];
+		Object.assign(first.data, { mood: 'happy', loud: false });
+		first.meta.options = { mood: ['happy', 'sad'] };
+		withKeys.sections[0].texts[0].data.choices[0].meta = { options: { tone: ['a'] } };
+
+		const csv = exportStory('csv', { story: withKeys }).content.split('\r\n');
+		expect(csv[0]).toBe('Name,Section,SpeakerId,Speaker,Text,Next,Choices,IsStart,mood,loud');
+		expect(csv[1].endsWith(',True,happy,False')).toBe(true);
+		expect(csv[2].endsWith(',,')).toBe(true);
+		expect(csv[1]).not.toContain('options');
+
+		const graph = JSON.parse(exportStory('graph-json', { story: withKeys }).content);
+		expect(graph.lines[0]).toMatchObject({ id: first.meta.id, mood: 'happy', loud: false });
+		expect(graph.lines[0].choices[0]).toEqual({ id: 'C1', text: 'Sure', next: 'R' });
+	});
+
+	it('compiles every dialogue graph of a story', () => {
+		const { sections, ...rest } = /** @type {any} */ (structuredClone(withChoices));
+		const compiled = compileStory({
+			...rest,
+			graphs: [
+				{ id: 'D1', name: 'One', sections },
+				{
+					id: 'D2',
+					name: 'Two',
+					sections: [
+						{
+							meta: { id: 'S9', position: '0,0' },
+							label: 'Other',
+							texts: [{ meta: { id: 'X1', position: '0,0' }, data: { content: 'Hello' } }]
+						}
+					]
+				}
+			]
+		});
+		expect(compiled.lines.map((line) => line.id)).toContain('X1');
+		expect(compiled.lines.length).toBeGreaterThan(1);
+	});
 });

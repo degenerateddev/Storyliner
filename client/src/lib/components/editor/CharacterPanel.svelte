@@ -5,6 +5,7 @@
 	import { confirm } from '$lib/components/ui/confirm.svelte.js';
 	import { getEditor } from '$lib/story/store.svelte.js';
 	import { CHARACTER_MIME, characterColor } from '$lib/story/characters';
+	import DialogueList from './DialogueList.svelte';
 
 	const editor = getEditor();
 
@@ -63,6 +64,7 @@
 </script>
 
 <aside class="flex h-full w-72 shrink-0 flex-col border-r border-stone-200 bg-white">
+	<DialogueList />
 	<div class="border-b border-stone-200 p-4">
 		<h2 class="text-sm font-semibold text-stone-900">Characters</h2>
 		<form onsubmit={add} class="mt-3 space-y-2">

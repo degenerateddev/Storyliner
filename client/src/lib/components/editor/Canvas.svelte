@@ -13,6 +13,7 @@
 	import { getEditor } from '$lib/story/store.svelte.js';
 	import { EDGE_DEFAULTS, flowToStory, makeEdge, storyToFlow } from '$lib/story/convert';
 	import {
+		applyPreset,
 		CHOICE_PREFIX,
 		cleanId,
 		LINE_PREFIX,
@@ -32,15 +33,17 @@
 	const editor = getEditor();
 	const { screenToFlowPosition, getInternalNode } = useSvelteFlow();
 
-	// The canvas is rebuilt (via {#key}) whenever the editor loads a new story.
-	const initial = untrack(() => storyToFlow(editor.story));
+	// The canvas shows one dialogue graph and is rebuilt (via {#key}) whenever the editor
+	// loads a new story or switches graphs.
+	const graphId = untrack(() => editor.graph.id);
+	const initial = untrack(() => storyToFlow(editor.graph, editor.idsOutside(graphId)));
 	let nodes = $state.raw(initial.nodes);
 	let edges = $state.raw(initial.edges);
 
-	// Every graph change is serialized and handed to the store (which debounces the save).
+	// Every change is written back into the graph (the page saves the story).
 	$effect(() => {
-		const story = flowToStory(nodes, edges, editor.characters, editor.info);
-		untrack(() => editor.queueSave(story));
+		const { sections } = flowToStory(nodes, edges, editor.characters);
+		untrack(() => editor.setSections(graphId, sections));
 	});
 
 	/** @param {any} node */
@@ -106,6 +109,7 @@
 			data: {
 				character: character ? { ...character } : null,
 				content: '',
+				fields: applyPreset([], editor.defaultPreset('node')),
 				choices: [],
 				raw: {},
 				focus: true
@@ -118,12 +122,14 @@
 		return text;
 	}
 
-	/** Line and choice ids share one namespace, so every id works as a localization key. */
-	const takenIds = () =>
-		nodes.flatMap((node) => [
+	/** Line and choice ids share one namespace (across graphs), so every id works as a localization key. */
+	const takenIds = () => [
+		...editor.idsOutside(graphId),
+		...nodes.flatMap((node) => [
 			node.id,
 			...(node.data.choices ?? []).map((/** @type {any} */ choice) => choice.id)
-		]);
+		])
+	];
 
 	/**
 	 * @param {string} lineId
@@ -149,9 +155,26 @@
 
 	setCanvasActions({
 		addChoice(lineId) {
-			const id = readableId(CHOICE_PREFIX, takenIds());
-			updateChoices(lineId, (choices) => [...choices, { id, text: '', raw: {} }]);
-			return id;
+			const taken = takenIds();
+			const newChoice = () => {
+				const id = readableId(CHOICE_PREFIX, taken);
+				taken.push(id);
+				return { id, text: '', fields: applyPreset([], editor.defaultPreset('choice')), raw: {} };
+			};
+			const added = [newChoice()];
+
+			// A line with choices has no plain handle, so its arrows move onto choices:
+			// the first onto the new choice, every other one onto a choice of its own.
+			const plain = edges.filter((edge) => edge.source === lineId && !edge.sourceHandle);
+			const moved = plain.map((edge, index) => {
+				const choice = index === 0 ? added[0] : newChoice();
+				if (index > 0) added.push(choice);
+				return makeEdge(lineId, edge.target, choice.id);
+			});
+			// Handles first: an edge whose handle does not exist yet is an error in Svelte Flow.
+			updateChoices(lineId, (choices) => [...choices, ...added]);
+			if (plain.length) edges = [...edges.filter((edge) => !plain.includes(edge)), ...moved];
+			return added[0].id;
 		},
 
 		removeChoice(lineId, choiceId) {
