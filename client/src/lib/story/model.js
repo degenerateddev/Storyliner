@@ -303,7 +303,8 @@ export function applyPreset(fields, preset) {
 		...fields,
 		...(preset?.fields ?? [])
 			.filter((field) => !keys.has(field.key))
-			.map((field) => structuredClone(field))
+			// JSON round-trip instead of structuredClone: preset fields may be Svelte $state proxies
+			.map((field) => JSON.parse(JSON.stringify(field)))
 	];
 }
 
