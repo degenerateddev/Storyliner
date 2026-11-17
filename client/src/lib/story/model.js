@@ -4,13 +4,18 @@
  *   texts: [{ meta: { id, position: "x,y", parentId, type, options? },
  *     data: { character, content, next: [ids], choices: [{ id, text, next: id | "", meta?: { options }, ...custom }],
  *       ...custom } }] }] }],
+ *   language?, localizations?: [{ language, sections }] }],
  *   choicePresets?: [Preset], nodePresets?: [Preset] }
+ * A graph's `localizations` are translated copies of its sections with the same structure and ids
+ * (see localization.js); `language` is the language of the graph's own sections.
  * Preset: { id, name, default, fields: [{ key, type, value, options? }] }
  * Unknown keys are preserved so engine-specific data survives a round trip; plain values among
  * them (on a choice, or in a line's `data`) are the custom keys the editor lets you edit.
  * `meta.options` maps a custom key to its dropdown options. A story with top-level `sections`
  * (the format before dialogue graphs) is read as a single graph.
  */
+
+import { normalizeLocalizations } from './localization';
 
 export const SECTION_SIZE = { width: 640, height: 400 };
 export const TEXT_WIDTH = 256;
@@ -425,11 +430,15 @@ export function normalizeStory(raw) {
 		let id = cleanId(graph.id);
 		if (!id || ids.has(id)) id = readableId(GRAPH_PREFIX, [...ids, ...graphs.map((g) => g.id)]);
 		ids.add(id);
+		const { language, localizations } = normalizeLocalizations(graph, normalizeSections);
+		const { language: _language, localizations: _localizations, ...rest } = graph;
 		return {
-			...graph,
+			...rest,
 			id,
 			name: typeof graph.name === 'string' && graph.name ? graph.name : graphName(index + 1),
-			sections: normalizeSections(graph.sections)
+			sections: normalizeSections(graph.sections),
+			...(language ? { language } : {}),
+			...(localizations.length ? { localizations } : {})
 		};
 	});
 

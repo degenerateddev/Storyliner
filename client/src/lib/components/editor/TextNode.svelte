@@ -144,7 +144,8 @@
 			bind:this={textarea}
 			value={data.content}
 			oninput={(event) => updateNodeData(id, { content: event.currentTarget.value })}
-			placeholder="Write a line…"
+			placeholder={actions.reference(id) || 'Write a line…'}
+			title={actions.reference(id) ? `Original: ${actions.reference(id)}` : undefined}
 			rows="3"
 			class="nodrag nowheel block max-h-64 min-h-[4.5rem] w-full resize-none border-0 bg-transparent px-3 py-2 text-sm leading-relaxed text-stone-800 [field-sizing:content] placeholder:text-stone-400 focus:ring-0 {choices.length
 				? ''
@@ -193,7 +194,7 @@
 						onkeydown={(event) => {
 							if (event.key === 'Enter') addChoice();
 						}}
-						placeholder="Choice text…"
+						placeholder={actions.reference(id, choice.id) || 'Choice text…'}
 						aria-label="Choice text"
 						class="nodrag min-w-0 flex-1 rounded border-0 bg-transparent px-1 py-0.5 text-sm text-stone-800 placeholder:text-stone-400 focus:bg-stone-50 focus:ring-1 focus:ring-accent-500"
 					/>

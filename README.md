@@ -52,6 +52,7 @@ npm run dev               # npm test runs the exporter tests
 ## Using the editor
 - Each account has several **stories**. The start page (click the *Storyliner* logo in the editor to get there) lists them: open, delete, create a new one or import a Storyliner JSON file as a new story. In the editor, the **+** next to the story name creates another story. Characters, dialogues and presets belong to one story.
 - A story can hold several **dialogues** (dialogue graphs): create, rename and delete them in the *Dialogues* list of the sidebar. With more than one, tabs in the top bar switch between them (double-click a tab to rename it).
+- **Localizations**: the *Languages* menu in the top bar adds a localized version of the open dialogue (pick the language, and optionally the original's language). It starts with the same sections, lines, choices, arrows, speakers and custom keys but no text; empty fields show the original text as a hint. The same menu switches between versions and syncs the structure of the version on the canvas into another one (or all): lines and choices that exist in both keep their text, new ones start empty, and you are warned before a sync deletes lines or choices the target has but the source doesn't. Engine exports use the version on the canvas (the file name gets the language code); switch the *Language* toggle in the Export menu to *All* to get every version of the dialogue as one ZIP (one file per language).
 - Add characters in the left panel, then drag one onto the canvas to write a line (a section is created if you drop on empty space).
 - Drag from a line's right handle to another line to connect them, or onto empty space to create the follow-up line.
 - Click the **+** at the bottom of a line to add a **player choice**. Each choice has its own text, id and handle: drag from it to the line it leads to (or onto empty space to create that line). A choice without an arrow ends the dialogue. A line with choices continues only through them, so its plain right handle disappears (existing arrows move onto choices).
@@ -114,6 +115,7 @@ struct FStorylinerLine : public FTableRowBase
 
 ## Storyliner JSON format
 - A story has `graphs`: one `{ "id", "name", "sections" }` per dialogue. Files with top-level `sections` (older format) are read as a single dialogue.
+- A graph may also have `language` (the language of its own `sections`) and `localizations`: `[{ "language": "de", "sections": [...] }]`, translated copies that use the same section, line and choice ids.
 - `next` is always an array of line ids (empty for the last line) within the same dialogue.
 - `choices` (optional) is an array of `{ "id", "text", "next" }`, where `next` is a single line id or `""` (ends the dialogue). Line and choice ids share one namespace. Any other plain key (string, number, boolean) on a choice, or in a line's `data` besides `character`, `content`, `next` and `choices`, is a custom key.
 - A custom key with dropdown options lists them in `meta.options` of its choice or line: `"meta": { "options": { "mood": ["happy", "sad"] } }`. The key itself holds the selected value.

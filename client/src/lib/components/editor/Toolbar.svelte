@@ -8,6 +8,7 @@
 	import { getEditor } from '$lib/story/store.svelte.js';
 	import ExportMenu from './ExportMenu.svelte';
 	import GraphTabs from './GraphTabs.svelte';
+	import LanguageMenu from './LanguageMenu.svelte';
 	import PresetsDialog from './PresetsDialog.svelte';
 
 	/** @type {{ panelOpen: boolean }} */
@@ -170,6 +171,7 @@
 		>
 			<Icon name="tag" class="size-4" /> <span class="hidden lg:inline">Presets</span>
 		</Button>
+		<LanguageMenu />
 		<ExportMenu />
 		<form method="POST" action="/logout">
 			<Button type="submit" variant="ghost" size="sm" aria-label="Log out" title="Log out">

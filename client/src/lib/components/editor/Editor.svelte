@@ -64,7 +64,7 @@
 				<CharacterPanel />
 			{/if}
 			<main class="relative min-w-0 flex-1">
-				{#key `${editor.revision}:${editor.activeGraphId}`}
+				{#key `${editor.revision}:${editor.activeGraphId}:${editor.activeLanguage}`}
 					<Canvas />
 				{/key}
 			</main>

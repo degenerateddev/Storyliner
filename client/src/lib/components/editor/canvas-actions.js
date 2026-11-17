@@ -9,8 +9,11 @@ const CONTEXT_KEY = Symbol('canvas-actions');
  *   addChoice: (lineId: string) => string,
  *   removeChoice: (lineId: string, choiceId: string) => void,
  *   renameChoice: (lineId: string, choiceId: string, value: string) => boolean,
- *   renameLine: (lineId: string, value: string) => boolean
+ *   renameLine: (lineId: string, value: string) => boolean,
+ *   reference: (lineId: string, choiceId?: string) => string
  * }} CanvasActions
+ * `reference` is the text of a line (or choice) in the graph's original version, shown as a hint
+ * while editing a localization ("" on the original).
  */
 
 /** @param {CanvasActions} actions */

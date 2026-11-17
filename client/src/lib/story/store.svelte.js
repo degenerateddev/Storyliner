@@ -3,6 +3,7 @@ import { goto } from '$app/navigation';
 import { resolve } from '$app/paths';
 import { api } from '$lib/api/client';
 import { exportStory } from '$lib/export';
+import { createZip } from '$lib/export/zip';
 import {
 	emptyGraph,
 	emptyStory,
@@ -15,6 +16,14 @@ import {
 	normalizeStory,
 	readableId
 } from './model';
+import {
+	cleanLanguage,
+	ORIGINAL,
+	sectionsOf,
+	syncSections,
+	variantsOf,
+	withSections
+} from './localization';
 
 const CONTEXT_KEY = Symbol('editor');
 /** @param {string | number} projectId */
@@ -45,11 +54,12 @@ function writeCache(projectId, serialized) {
 
 /**
  * @param {string} filename
- * @param {string} content
+ * @param {string | Uint8Array} content
  * @param {string} mime
  */
 function download(filename, content, mime) {
-	const blob = new Blob([content], { type: `${mime};charset=utf-8` });
+	const type = typeof content === 'string' ? `${mime};charset=utf-8` : mime;
+	const blob = new Blob([/** @type {BlobPart} */ (content)], { type });
 	const url = URL.createObjectURL(blob);
 	const link = document.createElement('a');
 	link.href = url;
@@ -65,9 +75,9 @@ const slug = (name) =>
 		.replace(/[^a-z0-9]+/g, '-')
 		.replace(/^-|-$/g, '') || 'story';
 
-/** Ids of all lines and choices of a graph. @param {any} graph @returns {string[]} */
-const idsOf = (graph) =>
-	graph.sections.flatMap((/** @type {any} */ section) =>
+/** Ids of all lines and choices of some sections. @param {any[]} sections @returns {string[]} */
+const idsOf = (sections) =>
+	sections.flatMap((/** @type {any} */ section) =>
 		section.texts.flatMap((/** @type {any} */ text) => [
 			text.meta.id,
 			...text.data.choices.map((/** @type {any} */ choice) => choice.id)
@@ -93,6 +103,11 @@ export class EditorStore {
 	graphs = $state.raw([]);
 	/** Graph shown on the canvas. */
 	activeGraphId = $state('');
+	/**
+	 * Language picked for the canvas (ORIGINAL for the graph's own sections). Kept when switching
+	 * graphs; a graph without that localization shows its original.
+	 */
+	language = $state(ORIGINAL);
 	/** Bumped whenever the story is replaced so the canvas rebuilds. */
 	revision = $state(0);
 	/** @type {SaveStatus} */
@@ -126,6 +141,7 @@ export class EditorStore {
 		this.graphs = graphs;
 		this.info = info;
 		this.activeGraphId = graphs[0].id;
+		this.language = ORIGINAL;
 		this.revision++;
 	}
 
@@ -137,6 +153,91 @@ export class EditorStore {
 	/** The graph shown on the canvas. */
 	get graph() {
 		return this.graphs.find((graph) => graph.id === this.activeGraphId) ?? this.graphs[0];
+	}
+
+	/** Language of the version on the canvas (ORIGINAL when the graph lacks the picked one). */
+	get activeLanguage() {
+		return variantsOf(this.graph).includes(this.language) ? this.language : ORIGINAL;
+	}
+
+	/** Sections of the version on the canvas. */
+	get sections() {
+		return sectionsOf(this.graph, this.activeLanguage);
+	}
+
+	/** @param {string} language - ORIGINAL or a localization of the active graph */
+	selectLanguage(language) {
+		this.language = language;
+	}
+
+	/**
+	 * @param {string} id
+	 * @param {(graph: any) => any} change
+	 */
+	#updateGraph(id, change) {
+		this.graphs = this.graphs.map((graph) => (graph.id === id ? change(graph) : graph));
+	}
+
+	/**
+	 * Set the language of the active graph's own sections. @param {string} language
+	 * @returns {boolean} false when the code is unusable or taken by a localization
+	 */
+	setOriginalLanguage(language) {
+		const code = cleanLanguage(language);
+		if (code && variantsOf(this.graph).includes(code)) return false;
+		this.#updateGraph(this.graph.id, ({ language: _old, ...graph }) =>
+			code ? { ...graph, language: code } : graph
+		);
+		return true;
+	}
+
+	/**
+	 * Add a localization of the active graph with the structure of the version on the canvas
+	 * (without its text), and show it.
+	 * @param {string} language
+	 * @returns {boolean} false when the code is unusable or already used by this graph
+	 */
+	addLocalization(language) {
+		const code = cleanLanguage(language);
+		const graph = this.graph;
+		if (!code || code === graph.language || variantsOf(graph).includes(code)) return false;
+		const { sections } = syncSections(this.sections, []);
+		this.#updateGraph(graph.id, (g) => ({
+			...g,
+			localizations: [...(g.localizations ?? []), { language: code, sections }]
+		}));
+		this.language = code;
+		return true;
+	}
+
+	/** @param {string} language - a localization of the active graph */
+	removeLocalization(language) {
+		if (language === ORIGINAL) return;
+		this.#updateGraph(this.graph.id, ({ localizations = [], ...graph }) => {
+			const rest = localizations.filter((/** @type {any} */ l) => l.language !== language);
+			return rest.length ? { ...graph, localizations: rest } : graph;
+		});
+		if (this.language === language) this.language = ORIGINAL;
+	}
+
+	/**
+	 * What syncing the structure of the version on the canvas into another version of the graph
+	 * would produce (and remove).
+	 * @param {string} target - ORIGINAL or a localization of the active graph
+	 */
+	previewSync(target) {
+		return syncSections(this.sections, sectionsOf(this.graph, target));
+	}
+
+	/**
+	 * Copy the structure of the version on the canvas into another version of the graph; that
+	 * version keeps its text for lines and choices that exist in both.
+	 * @param {string} target
+	 */
+	syncTo(target) {
+		if (target === this.activeLanguage || !variantsOf(this.graph).includes(target)) return;
+		const { sections } = this.previewSync(target);
+		this.#updateGraph(this.graph.id, (graph) => withSections(graph, target, sections));
 	}
 
 	/** @param {string} id */
@@ -175,19 +276,27 @@ export class EditorStore {
 	/**
 	 * Called by the canvas whenever its graph changes.
 	 * @param {string} id
+	 * @param {string} language - version shown on the canvas
 	 * @param {any[]} sections
 	 */
-	setSections(id, sections) {
-		this.graphs = this.graphs.map((graph) => (graph.id === id ? { ...graph, sections } : graph));
+	setSections(id, language, sections) {
+		this.#updateGraph(id, (graph) => withSections(graph, language, sections));
 	}
 
 	/**
-	 * Line and choice ids of all other graphs: ids are unique across the story, so every id
-	 * works as a localization key.
+	 * Line and choice ids of all other graphs and of the other versions of this graph: ids are
+	 * unique across the story (the versions of a graph share them for the same line), so every id
+	 * works as a localization key, and a line added to one version only is not mistaken for
+	 * another when syncing.
 	 * @param {string} id
+	 * @param {string} [language]
 	 */
-	idsOutside(id) {
-		return this.graphs.filter((graph) => graph.id !== id).flatMap(idsOf);
+	idsOutside(id, language = ORIGINAL) {
+		return this.graphs.flatMap((graph) =>
+			variantsOf(graph)
+				.filter((variant) => graph.id !== id || variant !== language)
+				.flatMap((variant) => idsOf(sectionsOf(graph, variant)))
+		);
 	}
 
 	/** @param {any} graph */
@@ -308,21 +417,55 @@ export class EditorStore {
 	}
 
 	/**
-	 * The Storyliner JSON backup holds every graph; the engine formats export the graph
-	 * on the canvas.
+	 * The Storyliner JSON backup holds every graph with all its localizations; the engine formats
+	 * export the graph on the canvas, in the language on the canvas or (`allLanguages`) once per
+	 * version of the graph, bundled in a ZIP.
 	 * @param {string} formatId - see EXPORT_FORMATS
+	 * @param {{ allLanguages?: boolean }} [options]
 	 */
-	exportAs(formatId) {
+	exportAs(formatId, { allLanguages = false } = {}) {
 		// Twine needs a stable story id; it is stored with the story so re-exports keep it.
 		if (formatId === 'twee' && !this.info.ifid) this.info.ifid = newId().toUpperCase();
-		const full = formatId === 'storyliner';
-		const story = { ...$state.snapshot(this.info), graphs: full ? this.graphs : [this.graph] };
-		const name =
-			full || this.graphs.length < 2
+		const info = $state.snapshot(this.info);
+		if (formatId === 'storyliner') {
+			const { content, extension, mime } = exportStory(formatId, {
+				story: { ...info, graphs: this.graphs }
+			});
+			download(`${slug(this.info.name)}.${extension}`, content, mime);
+			return;
+		}
+
+		const base =
+			this.graphs.length < 2
 				? slug(this.info.name)
 				: `${slug(this.info.name)}-${slug(this.graph.name)}`;
-		const { content, extension, mime } = exportStory(formatId, { story });
-		download(`${name}.${extension}`, content, mime);
+		const variants = variantsOf(this.graph);
+		/** @param {string} language */
+		const render = (language) => {
+			// Engine formats get one version as a plain graph.
+			const { localizations: _localizations, ...graph } = this.graph;
+			const code = language === ORIGINAL ? graph.language : language;
+			const view = {
+				...graph,
+				sections: sectionsOf(this.graph, language),
+				...(code ? { language: code } : {})
+			};
+			return { code, ...exportStory(formatId, { story: { ...info, graphs: [view] } }) };
+		};
+
+		if (!allLanguages || variants.length < 2) {
+			const language = this.activeLanguage;
+			const { content, extension, mime } = render(language);
+			const suffix = language === ORIGINAL ? '' : `.${language}`;
+			download(`${base}${suffix}.${extension}`, content, mime);
+			return;
+		}
+
+		const files = variants.map((language) => {
+			const { code, content, extension } = render(language);
+			return { name: `${base}.${code || 'original'}.${extension}`, content };
+		});
+		download(`${base}.languages.zip`, createZip(files), 'application/zip');
 	}
 
 	exportCharacters() {

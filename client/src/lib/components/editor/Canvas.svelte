@@ -24,26 +24,32 @@
 	} from '$lib/story/model';
 	import { CHARACTER_MIME, characterColor } from '$lib/story/characters';
 	import { confirm } from '$lib/components/ui/confirm.svelte.js';
+	import { choiceKey, ORIGINAL, textsOf } from '$lib/story/localization';
+	import { fitSections, SECTION_PADDING } from '$lib/story/layout';
 	import { setCanvasActions } from './canvas-actions';
 
 	const nodeTypes = { text: TextNode, section: SectionNode };
-	const SECTION_PADDING = { x: 24, top: 56, bottom: 24 };
 	const TEXT_HEIGHT_ESTIMATE = 120;
 
 	const editor = getEditor();
 	const { screenToFlowPosition, getInternalNode } = useSvelteFlow();
 
-	// The canvas shows one dialogue graph and is rebuilt (via {#key}) whenever the editor
-	// loads a new story or switches graphs.
+	// The canvas shows one version (original or localization) of one dialogue graph and is rebuilt
+	// (via {#key}) whenever the editor loads a new story or switches graphs or languages.
 	const graphId = untrack(() => editor.graph.id);
-	const initial = untrack(() => storyToFlow(editor.graph, editor.idsOutside(graphId)));
+	const language = untrack(() => editor.activeLanguage);
+	const initial = untrack(() =>
+		storyToFlow({ sections: editor.sections }, editor.idsOutside(graphId, language))
+	);
+	/** Texts of the original version, as hints while translating. */
+	const reference = untrack(() => (language === ORIGINAL ? null : textsOf(editor.graph.sections)));
 	let nodes = $state.raw(initial.nodes);
 	let edges = $state.raw(initial.edges);
 
 	// Every change is written back into the graph (the page saves the story).
 	$effect(() => {
 		const { sections } = flowToStory(nodes, edges, editor.characters);
-		untrack(() => editor.setSections(graphId, sections));
+		untrack(() => editor.setSections(graphId, language, sections));
 	});
 
 	/** @param {any} node */
@@ -51,6 +57,36 @@
 		width: node.width ?? node.measured?.width ?? SECTION_SIZE.width,
 		height: node.height ?? node.measured?.height ?? SECTION_SIZE.height
 	});
+
+	/** Rendered size of a section or line (an estimate for a line not measured yet). @param {any} node */
+	function boxOf(node) {
+		if (node.type === 'section') return sizeOf(node);
+		const measured = getInternalNode(node.id)?.measured ?? node.measured;
+		return {
+			width: measured?.width || TEXT_WIDTH,
+			height: measured?.height || TEXT_HEIGHT_ESTIMATE
+		};
+	}
+
+	/** Grow sections so they wrap their lines again. @param {Iterable<string>} sectionIds */
+	function fit(sectionIds) {
+		const fitted = fitSections(nodes, sectionIds, boxOf);
+		if (fitted !== nodes) nodes = fitted;
+	}
+
+	/**
+	 * Fit the section of a new line once Svelte Flow has measured it (its height depends on
+	 * custom keys and choices). Gives up after a few frames and keeps the estimate.
+	 * @param {string} lineId
+	 */
+	function fitWhenMeasured(lineId, frames = 10) {
+		requestAnimationFrame(() => {
+			const node = nodes.find((n) => n.id === lineId);
+			if (!node) return;
+			if (getInternalNode(lineId)?.measured?.height || frames <= 0) fit([node.parentId]);
+			else fitWhenMeasured(lineId, frames - 1);
+		});
+	}
 
 	/**
 	 * Topmost section containing a flow position.
@@ -119,12 +155,13 @@
 			...nodes.map((node) => (node.id === section.id ? { ...node, ...needed } : node)),
 			text
 		];
+		fitWhenMeasured(text.id);
 		return text;
 	}
 
 	/** Line and choice ids share one namespace (across graphs), so every id works as a localization key. */
 	const takenIds = () => [
-		...editor.idsOutside(graphId),
+		...editor.idsOutside(graphId, language),
 		...nodes.flatMap((node) => [
 			node.id,
 			...(node.data.choices ?? []).map((/** @type {any} */ choice) => choice.id)
@@ -154,6 +191,14 @@
 	}
 
 	setCanvasActions({
+		reference(lineId, choiceId) {
+			if (!reference) return '';
+			return (
+				(choiceId === undefined
+					? reference.lines.get(lineId)
+					: reference.choices.get(choiceKey(lineId, choiceId))) ?? ''
+			);
+		},
 		addChoice(lineId) {
 			const taken = takenIds();
 			const newChoice = () => {
@@ -278,7 +323,10 @@
 				(edge.sourceHandle ?? null) === (connection.sourceHandle ?? null)
 		);
 
-	/** Moving a line onto another section moves it into that section. */
+	/**
+	 * Moving a line onto another section moves it into that section. A line left sticking out of
+	 * its section grows the section around it.
+	 */
 	/** @param {{ nodes: any[] }} event */
 	function onNodeDragStop({ nodes: dragged }) {
 		/** @type {Map<string, { parentId: string, position: { x: number, y: number } }>} */
@@ -302,13 +350,17 @@
 				});
 			}
 		}
-		if (moves.size === 0) return;
+		const touched = dragged
+			.filter((node) => node.type === 'text')
+			.map((node) => moves.get(node.id)?.parentId ?? node.parentId);
+		if (moves.size === 0) return fit(touched);
 
 		// Children must come after their parent, so moved nodes go to the end.
 		const updated = nodes.map((node) =>
 			moves.has(node.id) ? { ...node, ...moves.get(node.id) } : node
 		);
 		nodes = [...updated.filter((n) => !moves.has(n.id)), ...updated.filter((n) => moves.has(n.id))];
+		fit(touched);
 	}
 
 	/** @type {import('@xyflow/svelte').OnBeforeDelete} */
