@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeStory } from './model';
-import { cleanLanguage, sectionsOf, syncSections, variantsOf, withSections } from './localization';
+import {
+	cleanLanguage,
+	fieldKey,
+	sectionsOf,
+	syncSections,
+	textsOf,
+	variantsOf,
+	withSections
+} from './localization';
 
 /** @param {string} id @param {string} content @param {string[]} next @param {any[]} [choices] */
 const line = (id, content, next = [], choices = []) => ({
@@ -96,5 +104,58 @@ describe('localizations', () => {
 		expect(l3.data.content).toBe('');
 		expect(removed.lines).toEqual([{ id: 'L2', content: 'Tschüss' }]);
 		expect(removed.choices).toEqual([{ id: 'C2', lineId: 'L1', text: 'Nein' }]);
+	});
+
+	it('keeps the translated value of translatable keys and copies the other keys', () => {
+		/** @param {string} content @param {string} objective @param {number} reward @param {string} hint */
+		const version = (content, objective, reward, hint) =>
+			normalizeStory({
+				sections: sections([
+					{
+						meta: {
+							id: 'L1',
+							type: 'text',
+							parentId: 'S1',
+							position: '0,0',
+							translatable: ['objective']
+						},
+						data: {
+							character: null,
+							content,
+							next: [],
+							objective,
+							taskId: 'potion',
+							reward,
+							choices: [
+								{ id: 'C1', text: content, next: '', hint, meta: { translatable: ['hint'] } }
+							]
+						}
+					}
+				])
+			}).graphs[0].sections;
+		const source = version('Hallo', 'Braue einen Trank', 10, 'Tipp');
+		const target = version('Hello', 'Brew a potion', 5, 'Tip');
+		target[0].texts[0].data.taskId = 'old';
+
+		const [l1] = syncSections(source, target).sections[0].texts;
+		expect(l1.data).toMatchObject({
+			content: 'Hello',
+			objective: 'Brew a potion',
+			taskId: 'potion',
+			reward: 10
+		});
+		expect(l1.data.choices[0]).toMatchObject({ text: 'Hello', hint: 'Tip' });
+		expect(l1.meta.translatable).toEqual(['objective']);
+
+		// A new localization starts without text, translatable keys included.
+		const [fresh] = syncSections(source, []).sections[0].texts;
+		expect(fresh.data).toMatchObject({ content: '', objective: '', taskId: 'potion' });
+		expect(fresh.data.choices[0].hint).toBe('');
+
+		// The original values serve as hints while translating.
+		const { fields } = textsOf(source);
+		expect(fields.get(fieldKey('L1', undefined, 'objective'))).toBe('Braue einen Trank');
+		expect(fields.get(fieldKey('L1', 'C1', 'hint'))).toBe('Tipp');
+		expect(fields.has(fieldKey('L1', undefined, 'taskId'))).toBe(false);
 	});
 });

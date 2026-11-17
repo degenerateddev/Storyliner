@@ -166,6 +166,61 @@ describe('node custom keys', () => {
 	});
 });
 
+describe('translatable keys', () => {
+	it('round-trips the flag through the canvas in meta.translatable', () => {
+		const original = story([
+			text(
+				'A',
+				[],
+				[{ id: 'C1', text: 'Hi', next: '', hint: 'Tip', meta: { translatable: ['hint'] } }],
+				{
+					objective: 'Brew',
+					taskId: 'potion'
+				}
+			)
+		]);
+		original.graphs[0].sections[0].texts[0].meta.translatable = ['objective'];
+		const { nodes, edges } = storyToFlow(graphOf(original));
+		expect(nodes[1].data.fields).toEqual([
+			{ key: 'objective', type: 'text', value: 'Brew', translatable: true },
+			{ key: 'taskId', type: 'text', value: 'potion' }
+		]);
+		expect(nodes[1].data.choices[0].fields).toEqual([
+			{ key: 'hint', type: 'text', value: 'Tip', translatable: true }
+		]);
+
+		const saved = flowToStory(nodes, edges, []).sections[0].texts[0];
+		expect(saved.meta.translatable).toEqual(['objective']);
+		expect(saved.data.choices[0].meta).toEqual({ translatable: ['hint'] });
+
+		nodes[1].data.fields = [{ key: 'objective', type: 'text', value: 'Brew' }];
+		nodes[1].data.choices[0].fields = [{ key: 'hint', type: 'text', value: 'Tip' }];
+		const cleared = flowToStory(nodes, edges, []).sections[0].texts[0];
+		expect(cleared.meta).not.toHaveProperty('translatable');
+		expect(cleared.data.choices[0]).not.toHaveProperty('meta');
+	});
+
+	it('only keeps the flag on text keys', () => {
+		const field = { key: 'k', type: /** @type {const} */ ('text'), value: 'a', translatable: true };
+		expect(changeFieldType(field, 'text')).toEqual(field);
+		expect(changeFieldType(field, 'dropdown')).not.toHaveProperty('translatable');
+		const [preset] = normalizePresets([
+			{
+				name: 'P',
+				fields: [
+					{ key: 'objective', type: 'text', value: '', translatable: true },
+					{ key: 'count', type: 'number', value: 1, translatable: true }
+				]
+			}
+		]);
+		expect(preset.fields).toEqual([
+			{ key: 'objective', type: 'text', value: '', translatable: true },
+			{ key: 'count', type: 'number', value: 1 }
+		]);
+		expect(applyPreset([], preset)[0]).toMatchObject({ key: 'objective', translatable: true });
+	});
+});
+
 describe('field types', () => {
 	it('cleans dropdown options', () => {
 		expect(cleanOptions(' a, b ,, a ')).toEqual(['a', 'b']);

@@ -240,12 +240,31 @@
 									class={input}
 								/>
 							{:else}
-								<input
-									bind:value={field.value}
-									aria-label="Default value"
-									placeholder="(empty)"
-									class={input}
-								/>
+								<div class="flex min-w-0 items-center gap-1">
+									<input
+										bind:value={field.value}
+										aria-label="Default value"
+										placeholder="(empty)"
+										class="{input} min-w-0 flex-1"
+									/>
+									<button
+										type="button"
+										onclick={() => {
+											if (field.translatable) delete field.translatable;
+											else field.translatable = true;
+										}}
+										title={field.translatable
+											? 'Translatable: every language keeps its own value when syncing. Click to make it a plain key.'
+											: 'Make translatable (player-facing text): every language keeps its own value when syncing'}
+										aria-label="Translatable"
+										aria-pressed={!!field.translatable}
+										class="shrink-0 rounded p-1 hover:bg-stone-100 hover:text-accent-600 {field.translatable
+											? 'text-accent-600'
+											: 'text-stone-300'}"
+									>
+										<Icon name="language" class="size-4" />
+									</button>
+								</div>
 							{/if}
 							<button
 								type="button"

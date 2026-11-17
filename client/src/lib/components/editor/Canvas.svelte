@@ -24,7 +24,7 @@
 	} from '$lib/story/model';
 	import { CHARACTER_MIME, characterColor } from '$lib/story/characters';
 	import { confirm } from '$lib/components/ui/confirm.svelte.js';
-	import { choiceKey, ORIGINAL, textsOf } from '$lib/story/localization';
+	import { choiceKey, fieldKey, ORIGINAL, textsOf } from '$lib/story/localization';
 	import { fitSections, SECTION_PADDING } from '$lib/story/layout';
 	import { setCanvasActions } from './canvas-actions';
 
@@ -198,6 +198,9 @@
 					? reference.lines.get(lineId)
 					: reference.choices.get(choiceKey(lineId, choiceId))) ?? ''
 			);
+		},
+		referenceField(lineId, key, choiceId) {
+			return reference?.fields.get(fieldKey(lineId, choiceId, key)) ?? '';
 		},
 		addChoice(lineId) {
 			const taken = takenIds();

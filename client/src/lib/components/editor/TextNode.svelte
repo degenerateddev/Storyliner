@@ -160,7 +160,12 @@
 
 	{#if lineKeysOpen}
 		<div class={choices.length ? 'pb-2' : 'pb-4'}>
-			<CustomFields kind="node" {fields} onchange={(fields) => updateNodeData(id, { fields })} />
+			<CustomFields
+				kind="node"
+				{fields}
+				hint={(key) => actions.referenceField(id, key)}
+				onchange={(fields) => updateNodeData(id, { fields })}
+			/>
 		</div>
 	{/if}
 
@@ -227,6 +232,7 @@
 					<CustomFields
 						kind="choice"
 						fields={choice.fields ?? []}
+						hint={(key) => actions.referenceField(id, key, choice.id)}
 						onchange={(fields) => updateChoice(choice.id, { fields })}
 					/>
 				{/if}

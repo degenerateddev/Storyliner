@@ -1,17 +1,20 @@
 /**
  * Story JSON format (see README):
  * { name, graphs: [{ id, name, sections: [{ meta: { id, position: "x,y", size: "w,h", type }, label,
- *   texts: [{ meta: { id, position: "x,y", parentId, type, options? },
- *     data: { character, content, next: [ids], choices: [{ id, text, next: id | "", meta?: { options }, ...custom }],
+ *   texts: [{ meta: { id, position: "x,y", parentId, type, options?, translatable? },
+ *     data: { character, content, next: [ids],
+ *       choices: [{ id, text, next: id | "", meta?: { options?, translatable? }, ...custom }],
  *       ...custom } }] }] }],
  *   language?, localizations?: [{ language, sections }] }],
  *   choicePresets?: [Preset], nodePresets?: [Preset] }
  * A graph's `localizations` are translated copies of its sections with the same structure and ids
  * (see localization.js); `language` is the language of the graph's own sections.
- * Preset: { id, name, default, fields: [{ key, type, value, options? }] }
+ * Preset: { id, name, default, fields: [{ key, type, value, options?, translatable? }] }
  * Unknown keys are preserved so engine-specific data survives a round trip; plain values among
  * them (on a choice, or in a line's `data`) are the custom keys the editor lets you edit.
- * `meta.options` maps a custom key to its dropdown options. A story with top-level `sections`
+ * `meta.options` maps a custom key to its dropdown options; `meta.translatable` lists the text
+ * keys that hold player-facing text, which every localization keeps its own value for (like the
+ * line content) instead of taking it over when the structure is synced. A story with top-level `sections`
  * (the format before dialogue graphs) is read as a single graph.
  */
 
@@ -120,8 +123,9 @@ export const FIELD_TYPES = ['text', 'number', 'boolean', 'dropdown'];
 
 /** @typedef {string | number | boolean} FieldValue */
 /**
- * A custom key as the editor shows it; `options` only for dropdowns.
- * @typedef {{ key: string, type: FieldType, value: FieldValue, options?: string[] }} Field
+ * A custom key as the editor shows it; `options` only for dropdowns, `translatable` only for text
+ * keys (player-facing text that is translated per localization instead of copied when syncing).
+ * @typedef {{ key: string, type: FieldType, value: FieldValue, options?: string[], translatable?: boolean }} Field
  */
 
 /** @param {unknown} value @returns {value is FieldValue} */
@@ -168,7 +172,9 @@ export function fieldValue(type, value, options) {
  * @param {FieldType} type
  * @returns {Field}
  */
-export function changeFieldType({ key, value, options }, type) {
+export function changeFieldType({ key, value, options, translatable }, type) {
+	if (type === 'text' && translatable)
+		return { key, type, value: fieldValue(type, value), translatable: true };
 	if (type !== 'dropdown') return { key, type, value: fieldValue(type, value) };
 	const list = options ?? cleanOptions([value === '' || value === false ? '' : value]);
 	return { key, type, value: fieldValue(type, value, list), options: list };
@@ -204,15 +210,32 @@ export function splitFields(object, reserved) {
 }
 
 /**
- * Custom key values -> editor fields. A text value with options (from `meta.options`) is a dropdown.
+ * Keys listed in `meta.translatable` (player-facing text keys of a line or choice).
+ * @param {unknown} meta
+ * @returns {string[]}
+ */
+export function translatableKeys(meta) {
+	const list = isObject(meta) ? /** @type {any} */ (meta).translatable : undefined;
+	return Array.isArray(list) ? list.filter((key) => typeof key === 'string' && key) : [];
+}
+
+/**
+ * Custom key values -> editor fields. A text value with options (from `meta.options`) is a dropdown;
+ * a text value listed in `meta.translatable` is translatable.
  * @param {Record<string, FieldValue>} values
  * @param {any} options - `meta.options`
+ * @param {unknown} [translatable] - `meta.translatable`
  * @returns {Field[]}
  */
-export function toFields(values, options) {
+export function toFields(values, options, translatable) {
+	const translated = new Set(Array.isArray(translatable) ? translatable : []);
 	return Object.entries(values).map(([key, value]) => {
-		if (typeof value !== 'string' || !isObject(options) || !(key in options))
-			return { key, type: fieldType(value), value };
+		if (typeof value !== 'string' || !isObject(options) || !(key in options)) {
+			const type = fieldType(value);
+			return type === 'text' && translated.has(key)
+				? { key, type, value, translatable: true }
+				: { key, type, value };
+		}
 		const list = cleanOptions(options[key]);
 		// Keep a value that is no longer an option rather than losing it.
 		if (value && !list.includes(value)) list.push(value);
@@ -221,7 +244,8 @@ export function toFields(values, options) {
 }
 
 /**
- * Editor fields -> custom key values, plus the options of dropdowns (for `meta.options`).
+ * Editor fields -> custom key values, plus the options of dropdowns (for `meta.options`) and the
+ * translatable text keys (for `meta.translatable`).
  * @param {Field[]} fields
  */
 export function fromFields(fields) {
@@ -229,22 +253,34 @@ export function fromFields(fields) {
 	const values = {};
 	/** @type {Record<string, string[]> | undefined} */
 	let options;
+	/** @type {string[] | undefined} */
+	let translatable;
 	for (const field of fields) {
 		values[field.key] = field.value;
 		if (field.type === 'dropdown') (options ??= {})[field.key] = [...(field.options ?? [])];
+		if (field.type === 'text' && field.translatable) (translatable ??= []).push(field.key);
 	}
-	return { values, options };
+	return { values, options, translatable };
 }
 
 /**
- * `meta` with its `options` replaced (or removed when there are none).
+ * `meta` with its `options` and `translatable` replaced (each removed when there are none).
  * @param {unknown} meta
  * @param {Record<string, string[]> | undefined} options
+ * @param {string[] | undefined} [translatable]
  * @returns {Record<string, any>}
  */
-export function withOptions(meta, options) {
-	const { options: _old, ...rest } = isObject(meta) ? /** @type {any} */ (meta) : {};
-	return options ? { ...rest, options } : rest;
+export function withOptions(meta, options, translatable) {
+	const {
+		options: _old,
+		translatable: _oldTranslatable,
+		...rest
+	} = isObject(meta) ? /** @type {any} */ (meta) : {};
+	return {
+		...rest,
+		...(options ? { options } : {}),
+		...(translatable?.length ? { translatable } : {})
+	};
 }
 
 /**
@@ -260,6 +296,8 @@ function normalizeField(field, reserved) {
 	/** @type {FieldType} */
 	const type = FIELD_TYPES.includes(field.type) ? field.type : 'text';
 	const key = cleanKey(field.key, reserved);
+	if (type === 'text' && field.translatable === true)
+		return { key, type, value: fieldValue(type, field.value), translatable: true };
 	if (type !== 'dropdown') return { key, type, value: fieldValue(type, field.value) };
 	const options = cleanOptions(field.options);
 	return { key, type, value: fieldValue(type, field.value, options), options };

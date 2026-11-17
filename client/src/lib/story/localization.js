@@ -4,7 +4,8 @@
  * A graph may name its own language (`language`) and carry localized copies in
  * `localizations: [{ language, sections }]`. Every copy shares the structure of the graph
  * (sections, lines, choices, arrows, speakers, custom keys, all with the same ids), so a line id
- * identifies the same line in every language; only the text (line content, choice text) differs.
+ * identifies the same line in every language; only the text differs: line content, choice text
+ * and the custom keys marked translatable (`meta.translatable` of the line or choice).
  * The structure is copied from one version to another on demand (`syncSections`).
  */
 
@@ -164,46 +165,110 @@ export function withSections(graph, language, sections) {
 /** Key of a choice in `textsOf(...).choices` (choice ids are only unique within a line). @param {string} lineId @param {string} choiceId */
 export const choiceKey = (lineId, choiceId) => JSON.stringify([lineId, choiceId]);
 
-/** Text of every line and choice of some sections, keyed by id. @param {any[]} sections */
+/**
+ * Key of a custom key's value in `textsOf(...).fields`.
+ * @param {string} lineId
+ * @param {string | undefined} choiceId - undefined for a key of the line itself
+ * @param {string} key
+ */
+export const fieldKey = (lineId, choiceId, key) => JSON.stringify([lineId, choiceId ?? null, key]);
+
+/** Translatable custom keys listed in a line's or choice's `meta`. @param {any} meta @returns {string[]} */
+const translatableOf = (meta) =>
+	isObject(meta) && Array.isArray(meta.translatable)
+		? meta.translatable.filter((/** @type {unknown} */ key) => typeof key === 'string' && key)
+		: [];
+
+/** @param {any} object @param {string} key */
+const textValue = (object, key) => (typeof object?.[key] === 'string' ? object[key] : undefined);
+
+/**
+ * Text of every line and choice of some sections, keyed by id, and the values of their
+ * translatable custom keys (keyed by `fieldKey`).
+ * @param {any[]} sections
+ */
 export function textsOf(sections) {
 	/** @type {Map<string, string>} */
 	const lines = new Map();
 	/** @type {Map<string, string>} */
 	const choices = new Map();
+	/** @type {Map<string, string>} */
+	const fields = new Map();
 	for (const section of sections) {
 		for (const text of section.texts) {
-			lines.set(text.meta.id, text.data.content);
-			for (const choice of text.data.choices)
-				choices.set(choiceKey(text.meta.id, choice.id), choice.text);
+			const lineId = text.meta.id;
+			lines.set(lineId, text.data.content);
+			for (const key of translatableOf(text.meta)) {
+				const value = textValue(text.data, key);
+				if (value !== undefined) fields.set(fieldKey(lineId, undefined, key), value);
+			}
+			for (const choice of text.data.choices) {
+				choices.set(choiceKey(lineId, choice.id), choice.text);
+				for (const key of translatableOf(choice.meta)) {
+					const value = textValue(choice, key);
+					if (value !== undefined) fields.set(fieldKey(lineId, choice.id, key), value);
+				}
+			}
 		}
 	}
-	return { lines, choices };
+	return { lines, choices, fields };
+}
+
+/**
+ * Translatable keys of `source` with the target's values ("" when the target has none).
+ * @param {any} source - a line's `data` or a choice
+ * @param {any} sourceMeta
+ * @param {any} target - the same line's `data` / choice in the target, if it exists
+ */
+function translatedValues(source, sourceMeta, target) {
+	/** @type {Record<string, string>} */
+	const values = {};
+	for (const key of translatableOf(sourceMeta)) {
+		if (typeof source[key] !== 'string') continue;
+		values[key] = textValue(target, key) ?? '';
+	}
+	return values;
 }
 
 /**
  * The structure of `source` with the text of `target`: lines and choices that exist in both
- * keep the target's text, new ones start without text, and lines and choices missing from
- * `source` are dropped (listed in `removed`).
+ * keep the target's text (content, choice text and translatable custom keys), new ones start
+ * without text, and lines and choices missing from `source` are dropped (listed in `removed`).
+ * Which keys are translatable is decided by `source`; all other custom keys are structure and
+ * are copied from `source`.
  * @param {any[]} source
  * @param {any[]} target
  */
 export function syncSections(source, target) {
 	const texts = textsOf(target);
+	/** Lines of the target by id. @type {Map<string, any>} */
+	const targetLines = new Map();
+	for (const section of target)
+		for (const text of section.texts) targetLines.set(text.meta.id, text);
 	const kept = { lines: new Set(), choices: new Set() };
 	const sections = structuredClone(source).map((/** @type {any} */ section) => ({
 		...section,
 		texts: section.texts.map((/** @type {any} */ text) => {
 			const lineId = text.meta.id;
 			kept.lines.add(lineId);
+			const targetLine = targetLines.get(lineId);
 			return {
 				...text,
 				data: {
 					...text.data,
+					...translatedValues(text.data, text.meta, targetLine?.data),
 					content: texts.lines.get(lineId) ?? '',
 					choices: text.data.choices.map((/** @type {any} */ choice) => {
 						const key = choiceKey(lineId, choice.id);
 						kept.choices.add(key);
-						return { ...choice, text: texts.choices.get(key) ?? '' };
+						const targetChoice = targetLine?.data.choices.find(
+							(/** @type {any} */ c) => c.id === choice.id
+						);
+						return {
+							...choice,
+							...translatedValues(choice, choice.meta, targetChoice),
+							text: texts.choices.get(key) ?? ''
+						};
 					})
 				}
 			};

@@ -18,10 +18,12 @@
 	 * @type {{
 	 *   kind: import('$lib/story/model').FieldKind,
 	 *   fields: import('$lib/story/model').Field[],
-	 *   onchange: (fields: import('$lib/story/model').Field[]) => void
+	 *   onchange: (fields: import('$lib/story/model').Field[]) => void,
+	 *   hint?: (key: string) => string
 	 * }}
+	 * `hint` gives the original value of a translatable key while editing a localization.
 	 */
-	let { kind, fields, onchange } = $props();
+	let { kind, fields, onchange, hint = () => '' } = $props();
 
 	const editor = getEditor();
 	const presets = $derived(editor.presets(kind));
@@ -88,6 +90,17 @@
 			options,
 			value: fieldValue('dropdown', field.value, options)
 		}));
+	}
+
+	/**
+	 * Translatable text keys hold player-facing text: every localization keeps its own value
+	 * when the structure is synced, like the line text.
+	 * @param {import('$lib/story/model').Field} field
+	 */
+	function toggleTranslatable(field) {
+		update(field.key, ({ translatable, ...rest }) =>
+			translatable ? rest : { ...rest, translatable: true }
+		);
 	}
 
 	/** @param {string} key */
@@ -175,11 +188,27 @@
 						if (type === 'number' && !Number.isFinite(event.currentTarget.valueAsNumber)) return;
 						setValue(key, fieldValue(type, event.currentTarget.value));
 					}}
-					placeholder="value"
+					placeholder={(field.translatable && hint(key)) || 'value'}
 					aria-label="Value of {key}"
-					spellcheck="false"
+					spellcheck={type === 'text' && field.translatable ? 'true' : 'false'}
 					class={control}
 				/>
+				{#if type === 'text'}
+					<button
+						type="button"
+						onclick={() => toggleTranslatable(field)}
+						title={field.translatable
+							? 'Translatable: every language keeps its own value when syncing. Click to make it a plain key.'
+							: 'Make translatable (player-facing text): every language keeps its own value when syncing'}
+						aria-label="Translatable"
+						aria-pressed={!!field.translatable}
+						class="nodrag rounded p-0.5 hover:bg-white hover:text-accent-600 {field.translatable
+							? 'text-accent-600'
+							: 'text-stone-300'}"
+					>
+						<Icon name="language" class="size-3" />
+					</button>
+				{/if}
 			{/if}
 			<button
 				type="button"

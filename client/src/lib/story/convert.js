@@ -93,13 +93,13 @@ export function storyToFlow(graph, reserved = []) {
 				data: {
 					character: text.data.character,
 					content: text.data.content,
-					fields: toFields(line.values, text.meta.options),
+					fields: toFields(line.values, text.meta.options, text.meta.translatable),
 					choices: choices.map((choice) => {
 						const { values, rest } = splitFields(choice, CHOICE_KEYS);
 						return {
 							id: choice.id,
 							text: choice.text,
-							fields: toFields(values, choice.meta?.options),
+							fields: toFields(values, choice.meta?.options, choice.meta?.translatable),
 							raw: rest
 						};
 					}),
@@ -183,7 +183,8 @@ export function flowToStory(nodes, edges, characters, info = {}) {
 					parentId: node.parentId,
 					position: formatPair(node.position.x, node.position.y)
 				},
-				line.options
+				line.options,
+				line.translatable
 			),
 			data: {
 				...raw.data,
@@ -194,7 +195,7 @@ export function flowToStory(nodes, edges, characters, info = {}) {
 				choices: (node.data.choices ?? []).map((/** @type {any} */ choice) => {
 					const { meta: oldMeta, ...rest } = choice.raw ?? {};
 					const own = fromFields(choice.fields ?? []);
-					const meta = withOptions(oldMeta, own.options);
+					const meta = withOptions(oldMeta, own.options, own.translatable);
 					return {
 						...rest,
 						...own.values,
